@@ -1,0 +1,6 @@
+This favicon was generated using the following font:
+
+- Font Title: Miniver
+- Font Author: Copyright (c) 2011 by Open Window (dathanboardman@gmail.com) with Reseved Font Name "Miniver"
+- Font Source: http://fonts.gstatic.com/s/miniver/v11/eLGcP-PxIg-5H0vC770Cy8r8fWA.ttf
+- Font License: SIL Open Font License, 1.1 (http://scripts.sil.org/OFL))

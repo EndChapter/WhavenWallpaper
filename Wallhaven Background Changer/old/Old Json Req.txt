@@ -1,0 +1,50 @@
+	// Old Curl Req
+		//
+	//	function Json and Jpeg Curl Callback
+	//
+private: delegate std::size_t jsonCallback(const char* in, std::size_t size, std::size_t num, std::string* out);
+private: static std::size_t jsonBytes(const char* in, std::size_t size, std::size_t num, std::string* out)
+{
+	const std::size_t totalBytes(size * num);
+	out->append(in, totalBytes);
+	return totalBytes;
+}
+public: System::Void jsonRequest()
+{
+	CURL* curl = curl_easy_init();
+	curl_easy_setopt(curl, CURLOPT_URL, _url);
+	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+	struct curl_slist* slist = NULL;
+	// curl_slist_append(slist, "Content-Type: application/json");
+	// if (slist == NULL)
+	//	 return;
+	// curl_easy_setopt(curl, CURLOPT_HTTP	HEADER, slist);
+	// curl_slist_free_all(slist);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10);
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.0.3705; .NET CLR 1.1.4322)");
+
+	long httpCode(0);
+	std::unique_ptr<std::string> httpData(new std::string());
+
+	curl_easy_setopt(curl, CURLOPT_FAILONERROR, 0);
+
+	jsonCallback^ jCb = gcnew jsonCallback(&jsonBytes);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, jCb);
+
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, httpData.get());
+	curl_easy_perform(curl);
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+	curl_easy_cleanup(curl);
+	
+	if (httpCode == 200)
+	{
+		nlohmann::json j = nlohmann::json::parse(*httpData.get());
+		reqCb(j, 200);
+	}
+	else
+	{
+		nlohmann::json j = "{ \"error\": true }"_json;;
+		reqCb(j, httpCode);
+	}
+	}
