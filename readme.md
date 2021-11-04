@@ -40,7 +40,7 @@ You can download program in [releases](https://github.com/EndChapter/WhavenWallp
 
 ## Build
 
-You can build .sln file from Visual Studio 2019. It requires C++/CLI support, .Net Desktop, Universal Windows Platform, Visual Studio C++ development features.
+You can build .sln file from Visual Studio 2019. It requires C++/CLI support feature, .Net Desktop feature, Universal Windows Platform feature and Visual Studio C++ development features.
 
 ## Linux and Mac OS versions?
 
