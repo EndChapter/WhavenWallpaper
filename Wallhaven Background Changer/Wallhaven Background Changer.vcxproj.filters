@@ -43,6 +43,7 @@
     <Text Include="Old Jpeg Download.txt">
       <Filter>Source Files</Filter>
     </Text>
+    <Text Include="LICENSE.txt" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Wallhaven Background Changer.rc">

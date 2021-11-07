@@ -260,6 +260,7 @@
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="LICENSE.txt" />
     <Text Include="Old Json Req.txt" />
     <Text Include="Old Jpeg Download.txt" />
   </ItemGroup>
