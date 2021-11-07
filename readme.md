@@ -26,12 +26,6 @@ WHaven Wallpaper is a desktop wallpaper change program for change your wallpaper
 
 - When you minimize app, the app creates a tray icon in your taskbar and is hidden. When you click the tray icon app will be visible and you can use app again.
 
-## Planned Features
-
-// TODO: Start program when windows start
-
-// TODO: Continue app when closed and opened again
-
 ## Installation
 
 You can download program in [releases](https://github.com/EndChapter/WhavenWallpaper/releases) section.

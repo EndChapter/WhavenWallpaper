@@ -7,16 +7,22 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Whaven Wallpaper", "Wallhav
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		Release|ARM = Release|ARM
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Debug|ARM.ActiveCfg = Debug|ARM
+		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Debug|ARM.Build.0 = Debug|ARM
 		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Debug|x64.ActiveCfg = Debug|x64
 		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Debug|x64.Build.0 = Debug|x64
 		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Debug|x86.ActiveCfg = Debug|Win32
 		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Debug|x86.Build.0 = Debug|Win32
+		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Release|ARM.ActiveCfg = Release|ARM
+		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Release|ARM.Build.0 = Release|ARM
 		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Release|x64.ActiveCfg = Release|x64
 		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Release|x64.Build.0 = Release|x64
 		{C359D7B6-392C-42A0-8318-9C8FF191A79A}.Release|x86.ActiveCfg = Release|Win32

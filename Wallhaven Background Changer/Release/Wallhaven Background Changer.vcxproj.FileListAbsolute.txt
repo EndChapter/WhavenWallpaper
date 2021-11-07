@@ -1,4 +1,3 @@
 D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\Release\WallhavenBackgroundChanger.MyForm1.resources
 D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\Release\WallhavenBackgroundChanger.options.resources
 D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\Release\Wallhaven Background Changer.vcxproj.GenerateResource.cache
-D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\Release\Wallhaven Background Changer.vcxproj.AssemblyReference.cache

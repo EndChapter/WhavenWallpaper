@@ -1,2 +1,12 @@
-﻿  MyForm1.obj : MSIL module encountered; incremental linking is disabled for MSIL; performing full link
+﻿  MyForm1.cpp
+D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\MyForm1.h(1562,1): warning C4965: implicit box of integer 0; use nullptr or explicit cast
+D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\MyForm1.h(1613,1): warning C4965: implicit box of integer 0; use nullptr or explicit cast
+D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\MyForm1.h(1807,1): warning C4965: implicit box of integer 0; use nullptr or explicit cast
+D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\MyForm1.h(1838,1): warning C4965: implicit box of integer 0; use nullptr or explicit cast
+D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\MyForm1.h(1860,1): warning C4965: implicit box of integer 0; use nullptr or explicit cast
+D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\MyForm1.h(1962,1): warning C4965: implicit box of integer 0; use nullptr or explicit cast
+D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\MyForm1.h(1987,1): warning C4965: implicit box of integer 0; use nullptr or explicit cast
+D:\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\MyForm1.h(2009,1): warning C4965: implicit box of integer 0; use nullptr or explicit cast
+  .NETFramework,Version=v4.7.2.AssemblyAttributes.cpp
+  Generating Code...
   Wallhaven Background Changer.vcxproj -> D:\source\repos\Wallhaven Background Changer\Release\Whaven Wallpaper.exe
