@@ -6,15 +6,16 @@
 // Include libraries
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include <regex>
 #include <windows.h>
 #include <msclr/marshal_atl.h>
 #include <msclr/marshal_cppstd.h>
 #include <nlohmann/json.hpp>
-#include <iniparser.h>
 #include "resource.h"
 #include "JsonUtils.h"
 #include "JpegUtils.h"
+#include "options.h"
 #include "MyForm1.h"
 
 // Include ws2_32.lib
@@ -38,9 +39,6 @@ void Main(array<String^>^ args)
 	Application::EnableVisualStyles();
 	Application::SetCompatibleTextRenderingDefault(false);
 
-	// Create instance of form
-	WhavenWallpaper::MyForm form;
-
 	// Run Form
-	Application::Run(% form);
+	Application::Run(gcnew WhavenWallpaper::MyForm);
 }

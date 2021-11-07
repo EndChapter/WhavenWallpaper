@@ -1,7 +1,8 @@
 #pragma once
 
-// TODO random seeding maybe?
-// TODO json instead of ini
+// TODO random seeding
+// TODO startup shortcut
+// TODO json in appdata
 
 namespace WhavenWallpaper {
 	/// <summary>
@@ -23,8 +24,13 @@ namespace WhavenWallpaper {
 	public:
 		MyForm(void)
 		{
+			// Load App Icon Before Initialize Components
 			this->Icon = gcnew System::Drawing::Icon(resourceAssembly->GetManifestResourceStream("favicon.ico"));
+
+			// Initialize components
 			InitializeComponent();
+
+			// Add notify icon.
 			this->notifyIcon1->Icon = gcnew System::Drawing::Icon(resourceAssembly->GetManifestResourceStream("favicon.ico"));
 			this->notifyIcon1->Visible = false;
 			
@@ -35,52 +41,141 @@ namespace WhavenWallpaper {
 			this->sortingDropdown->SelectedIndex = 0;
 			this->counterDropDown->SelectedIndex = 1;
 			disableResultComponents();
-			//This code disables maximize button.
-			SetWindowLong(static_cast<HWND>(Handle.ToPointer()), GWL_STYLE,
-				GetWindowLong(static_cast<HWND>(Handle.ToPointer()), GWL_STYLE) & ~WS_MAXIMIZEBOX);
 
-			dictionary* ini;
-			ini = iniparser_load("whaven-wallpaper.ini");
-			if (ini == NULL) {
-				String^ fileName = "whaven-wallpaper.ini";
+			//This line disables maximize button.
+			SetWindowLong(static_cast<HWND>(Handle.ToPointer()), GWL_STYLE, GetWindowLong(static_cast<HWND>(Handle.ToPointer()), GWL_STYLE) & ~WS_MAXIMIZEBOX);
 
-				System::IO::StreamWriter^ sw = gcnew System::IO::StreamWriter(fileName);
-				sw->WriteLine("apikey=");
-				sw->WriteLine("download=true");
-				sw->WriteLine("savesession=true");
-				sw->Close();
-				// sw->WriteLine("addstartup=false");
+			// Create json instance for loading json file.
+			nlohmann::json j;
+
+			// Create bool instance for first running session we are checking this in session condution
+			bool saveSessionInit = false;
+
+			// If Json file exist.
+			if (System::IO::File::Exists("whaven-wallpaper-config.json"))
+			{
+				// Then create filestream for json.
+				std::ifstream i("whaven-wallpaper-config.json");
+
+				// Get filestrem to json.
+				i >> j;
+
+				// Get apikey
+				apikey = gcnew System::String((j["options"]["apikey"].get<std::string>()).c_str());
+
+				// Get download images option.
+				download = j["options"]["download"];
+
+				// Get save when quit option.
+				savesession = j["options"]["savesession"];
+				
+
 			}
-			else {
-				const char* _apikey = iniparser_getstring(ini,"apikey", "");
-				bool _download = iniparser_getboolean(ini, "download", true);
-				bool _savesession = iniparser_getboolean(ini, "savesession", false);
-				if (_apikey != NULL)
-					apikey = gcnew String(_apikey);
-				else
-					apikey = gcnew String("");
-				download = _download;
-				savesession = _savesession;
+			// If Json file not exist
+			else
+			{
+				// Create write stream for json
+				std::ofstream o("whaven-wallpaper-config.json");
+
+				// Set defaults to json
+				j["options"]["apikey"] = "";
+				j["options"]["download"] = true;
+				j["options"]["savesession"] = true;
+
+				// This is app's first time so don't enter session even session is true
+				saveSessionInit = true;
+
+				// Write json
+				o << std::setw(4) << j << std::endl;
 			}
+
+			// If there is no api key then dont show nsfw checkbox
 			if (apikey != gcnew String("") && apikey != nullptr) {
 				this->nsfwCheckBox->Visible = true;
 			}
-			if (savesession) {
-				String^ _url = gcnew String(iniparser_getstring(ini, "url", NULL));
-				selectedResultIndex = iniparser_getint(ini, "result", 0);
 
-				array<Windows::Forms::Control^>^ exceptedComponents = gcnew array<Windows::Forms::Control^>(4);
-				exceptedComponents[0] = this->imageLinkLabel;
-				exceptedComponents[1] = this->pathLinkLabel;
-				exceptedComponents[2] = this->statusStrip1;
-				exceptedComponents[3] = this->statusStrip2;
+			// If save option checked and this is not apps first time and if there is a session section in json file.
+			if (savesession && !saveSessionInit && j["session"].is_object())
+			{
+				// Getting resolution sort
+				String^ resShort = gcnew String((j["session"]["resShort"].get<std::string>()).c_str());
 
-				Thread^ disableComponents = gcnew Thread(gcnew ParameterizedThreadStart(this, &MyForm::disableButtons));
-				disableComponents->Start(exceptedComponents);
-				JsonUtils^ jd = gcnew JsonUtils(_url, gcnew JsonUtils::requestCallback(this, &MyForm::jsonRequestCallbackHandler));
-				Thread^ backgroundThread = gcnew Thread(gcnew ThreadStart(jd, &JsonUtils::jsonRequest));
-				backgroundThread->Start();
-			}
+				//Getting search query
+				this->textBox1->Text = gcnew String((j["session"]["search"].get<std::string>()).c_str());
+
+				// Getting categories
+				this->generalCheckBox->Checked = j["session"]["general"];
+				this->animeCheckBox->Checked = j["session"]["anime"];
+				this->peopleCheckBox->Checked = j["session"]["people"];
+
+				// Getting purity
+				this->sfwCheckBox->Checked = j["session"]["sfw"];
+				this->sketchyCheckBox->Checked = j["session"]["sketchy"];
+				this->nsfwCheckBox->Checked = j["session"]["nsfw"];
+
+				// Getting sorting index
+				if (j["session"]["sortingIndex"].is_null())
+					this->sortingDropdown->SelectedIndex = 0;
+				else
+					this->sortingDropdown->SelectedIndex = j["session"]["sortingIndex"];
+
+				// Getting order index
+				if (j["session"]["orderIndex"].is_null())
+					this->orderDropdown->SelectedIndex = 0;
+				else 
+					this->orderDropdown->SelectedIndex = j["session"]["orderIndex"];
+
+				// Setting resolution sorting
+				if (resShort == gcnew String("atleast"))
+				{
+					this->atLeastRadioButton->Checked = true;
+					this->exactlyRadioButton->Checked = false;
+					this->noSelectRadioButton->Checked = false;
+				}
+				else if (resShort == gcnew String("exactly"))
+				{
+					this->atLeastRadioButton->Checked = false;
+					this->exactlyRadioButton->Checked = true;
+					this->noSelectRadioButton->Checked = false;
+				}
+				else if (resShort = gcnew String("noResShort"))
+				{
+					this->atLeastRadioButton->Checked = false;
+					this->exactlyRadioButton->Checked = false;
+					this->noSelectRadioButton->Checked = true;
+				}
+				// Setting resolution inputs
+				this->resolutionXInput->Text = gcnew String((j["session"]["resXInput"].get<std::string>()).c_str());
+				this->resolutionYInput->Text = gcnew String((j["session"]["resYInput"].get<std::string>()).c_str());
+				this->autoCounterInput->Text = gcnew String((j["session"]["autoInput"].get<std::string>()).c_str());
+
+				// Setting app init true for setting app and result
+				appSessionInit = true;
+				// Getting page number in index number
+				if (j["session"]["pageIndex"].is_null())
+					page = 0;
+				else
+					page = j["session"]["pageIndex"];
+
+				// Getting result number in index number
+				if (j["session"]["resultIndex"].is_null())
+					result = 0;
+				else
+					result = j["session"]["resultIndex"];
+
+				// Setting page this automatically sets results too
+				this->pagesListBox_SelectedIndexChanged("", nullptr);
+
+				// Getting  auto select next image  counter dropdown index
+				if (j["session"]["autoDropdownIndex"].is_null())
+					this->counterDropDown->SelectedIndex = 0;
+				else
+					this->counterDropDown->SelectedIndex = j["session"]["autoDropdownIndex"];
+
+				// Getting auto select next image check state
+				this->autoCheckBox->Checked = j["session"]["autoCheckBox"];
+
+			} 
 		}
 
 	protected:
@@ -89,24 +184,81 @@ namespace WhavenWallpaper {
 		/// </summary>
 		~MyForm()
 		{
-			dictionary* ini;
-			ini = iniparser_load("whaven-wallpaper.ini");
-			msclr::interop::marshal_context context;
-			String^ str = queryBuilder(0);
-			if (iniparser_set(ini, "url", context.marshal_as<const char*>(str)) < 0) {
-				String^ fileName = "whaven-wallpaper.ini";
-				System::IO::StreamWriter^ sw = gcnew System::IO::StreamWriter(fileName);
-				sw->WriteLine("url=" + str);
-				sw->Close();
+
+			// If user selects to save current session and if app changed.
+			if (savesession && changed) {
+				// Create json instance for saving app state.
+				nlohmann::json j;
+
+				// Create context for type casting.
+				msclr::interop::marshal_context context;
+
+				// Create resolution short string. We are using this in constructor and setting this in down there.
+				String^ resShort = gcnew String("");
+
+				// Create virtual page index for getting page index.
+				int _page = page;
+
+				// Create virtual result index for getting result index.
+				int _result = result;
+
+				// Create file stream for getting current json.
+				std::ifstream i("whaven-wallpaper-config.json");
+				
+				// Write file to json.
+				i >> j;
+
+				// Setting search state to json.
+				j["session"]["search"] = context.marshal_as<const char*>(this->textBox1->Text);
+
+				// Setting categories to json.
+				j["session"]["general"] = this->generalCheckBox->Checked;
+				j["session"]["anime"] = this->animeCheckBox->Checked;
+				j["session"]["people"] = this->peopleCheckBox->Checked;
+
+				// Setting purity to json.
+				j["session"]["sfw"] = this->sfwCheckBox->Checked;
+				j["session"]["sketchy"] = this->sketchyCheckBox->Checked;
+				j["session"]["nsfw"] = this->nsfwCheckBox->Checked;
+
+				// Setting sorting indexes to json.
+				j["session"]["sortingIndex"] = this->sortingDropdown->SelectedIndex;
+				j["session"]["orderIndex"] = this->orderDropdown->SelectedIndex;
+
+				// Setting sorting state to json.
+				if (this->atLeastRadioButton->Checked)
+					resShort = gcnew String("atleast");
+				else if (this->exactlyRadioButton->Checked)
+					resShort = gcnew String("exactly");
+				else if (this->noSelectRadioButton->Checked)
+					resShort = gcnew String("noResShort");
+				j["session"]["resShort"] = context.marshal_as<const char*>(resShort);
+
+				// Setting resolution inputs to json.
+				j["session"]["resXInput"] = this->resolutionXInput->Text == gcnew String("") ? "1920" : context.marshal_as<const char*>(this->resolutionXInput->Text);
+				j["session"]["resYInput"] = this->resolutionYInput->Text == gcnew String("") ? "1080" : context.marshal_as<const char*>(this->resolutionYInput->Text);
+
+				// Setting page and result index to json.
+				j["session"]["pageIndex"] = _page;
+				j["session"]["resultIndex"] = _result;
+
+				// Setting automatically select next option to json for saving.
+				j["session"]["autoCheckBox"] = this->autoCheckBox->Checked;
+				j["session"]["autoInput"] = this->autoCounterInput->Text == gcnew String("") ? "30" : context.marshal_as<const char*>(this->autoCounterInput->Text);
+				j["session"]["autoDropdownIndex"] = this->counterDropDown->SelectedIndex;
+
+				// Create write stream for json.
+				std::ofstream o("whaven-wallpaper-config.json");
+
+				// Write json to file.
+				o << std::setw(4) << j << std::endl;
 			}
 
-			if (iniparser_set(ini, "result", (char*)selectedResultIndex) < 0) {
-				String^ fileName = "whaven-wallpaper.ini";
-				System::IO::StreamWriter^ sw = gcnew System::IO::StreamWriter(fileName);
-				sw->WriteLine("result=" + selectedResultIndex);
-				sw->Close();
-			}
-			repeat = false;
+			// If there is a thread for select automatically next image abort that.
+			if(counterThread != nullptr)
+				counterThread->Abort();
+
+			// Delete components.
 			if (components) {
 				delete components;
 			}
@@ -158,6 +310,8 @@ namespace WhavenWallpaper {
 	private: System::Windows::Forms::TextBox^ autoCounterInput;
 	private: System::Windows::Forms::ComboBox^ counterDropDown;
 	private: System::Windows::Forms::NotifyIcon^ notifyIcon1;
+	private: System::Windows::Forms::Timer^ timer1;
+	private: System::Windows::Forms::Button^ optionsButton;
 	private: System::ComponentModel::IContainer^ components;
 	private:
 		/// <summary>
@@ -219,16 +373,17 @@ namespace WhavenWallpaper {
 			this->autoCounterInput = (gcnew System::Windows::Forms::TextBox());
 			this->counterDropDown = (gcnew System::Windows::Forms::ComboBox());
 			this->notifyIcon1 = (gcnew System::Windows::Forms::NotifyIcon(this->components));
+			this->timer1 = (gcnew System::Windows::Forms::Timer(this->components));
+			this->optionsButton = (gcnew System::Windows::Forms::Button());
 			this->statusStrip1->SuspendLayout();
 			this->statusStrip2->SuspendLayout();
 			this->SuspendLayout();
 			// 
 			// textBox1
 			// 
-			this->textBox1->Location = System::Drawing::Point(25, 44);
-			this->textBox1->Margin = System::Windows::Forms::Padding(4);
+			this->textBox1->Location = System::Drawing::Point(19, 36);
 			this->textBox1->Name = L"textBox1";
-			this->textBox1->Size = System::Drawing::Size(471, 22);
+			this->textBox1->Size = System::Drawing::Size(354, 20);
 			this->textBox1->TabIndex = 3;
 			this->textBox1->Tag = L"Data";
 			this->textBox1->KeyDown += gcnew System::Windows::Forms::KeyEventHandler(this, &MyForm::textBox1_KeyDown);
@@ -237,10 +392,9 @@ namespace WhavenWallpaper {
 			// 
 			this->categoriesLabel->AutoSize = true;
 			this->categoriesLabel->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 14, System::Drawing::FontStyle::Bold));
-			this->categoriesLabel->Location = System::Drawing::Point(16, 108);
-			this->categoriesLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->categoriesLabel->Location = System::Drawing::Point(12, 88);
 			this->categoriesLabel->Name = L"categoriesLabel";
-			this->categoriesLabel->Size = System::Drawing::Size(395, 29);
+			this->categoriesLabel->Size = System::Drawing::Size(362, 24);
 			this->categoriesLabel->TabIndex = 4;
 			this->categoriesLabel->Text = L"Categories  ————————————————";
 			// 
@@ -248,10 +402,9 @@ namespace WhavenWallpaper {
 			// 
 			this->purityLabel->AutoSize = true;
 			this->purityLabel->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 14, System::Drawing::FontStyle::Bold));
-			this->purityLabel->Location = System::Drawing::Point(20, 167);
-			this->purityLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->purityLabel->Location = System::Drawing::Point(15, 136);
 			this->purityLabel->Name = L"purityLabel";
-			this->purityLabel->Size = System::Drawing::Size(378, 29);
+			this->purityLabel->Size = System::Drawing::Size(359, 24);
 			this->purityLabel->TabIndex = 5;
 			this->purityLabel->Text = L"Purity  ———————————————————";
 			// 
@@ -259,10 +412,9 @@ namespace WhavenWallpaper {
 			// 
 			this->sortingLabel->AutoSize = true;
 			this->sortingLabel->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 14, System::Drawing::FontStyle::Bold));
-			this->sortingLabel->Location = System::Drawing::Point(21, 231);
-			this->sortingLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->sortingLabel->Location = System::Drawing::Point(16, 188);
 			this->sortingLabel->Name = L"sortingLabel";
-			this->sortingLabel->Size = System::Drawing::Size(381, 29);
+			this->sortingLabel->Size = System::Drawing::Size(358, 24);
 			this->sortingLabel->TabIndex = 6;
 			this->sortingLabel->Text = L"Sorting  ——————————————————";
 			// 
@@ -270,10 +422,9 @@ namespace WhavenWallpaper {
 			// 
 			this->miniSortingLabel->AutoSize = true;
 			this->miniSortingLabel->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10));
-			this->miniSortingLabel->Location = System::Drawing::Point(17, 266);
-			this->miniSortingLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->miniSortingLabel->Location = System::Drawing::Point(13, 216);
 			this->miniSortingLabel->Name = L"miniSortingLabel";
-			this->miniSortingLabel->Size = System::Drawing::Size(67, 20);
+			this->miniSortingLabel->Size = System::Drawing::Size(57, 17);
 			this->miniSortingLabel->TabIndex = 7;
 			this->miniSortingLabel->Text = L"Sorting:";
 			// 
@@ -281,10 +432,9 @@ namespace WhavenWallpaper {
 			// 
 			this->miniOrderLabel->AutoSize = true;
 			this->miniOrderLabel->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10));
-			this->miniOrderLabel->Location = System::Drawing::Point(284, 266);
-			this->miniOrderLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->miniOrderLabel->Location = System::Drawing::Point(213, 216);
 			this->miniOrderLabel->Name = L"miniOrderLabel";
-			this->miniOrderLabel->Size = System::Drawing::Size(57, 20);
+			this->miniOrderLabel->Size = System::Drawing::Size(49, 17);
 			this->miniOrderLabel->TabIndex = 8;
 			this->miniOrderLabel->Text = L"Order:";
 			// 
@@ -294,10 +444,9 @@ namespace WhavenWallpaper {
 			this->generalCheckBox->Checked = true;
 			this->generalCheckBox->CheckState = System::Windows::Forms::CheckState::Checked;
 			this->generalCheckBox->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->generalCheckBox->Location = System::Drawing::Point(21, 143);
-			this->generalCheckBox->Margin = System::Windows::Forms::Padding(4);
+			this->generalCheckBox->Location = System::Drawing::Point(16, 116);
 			this->generalCheckBox->Name = L"generalCheckBox";
-			this->generalCheckBox->Size = System::Drawing::Size(86, 25);
+			this->generalCheckBox->Size = System::Drawing::Size(72, 21);
 			this->generalCheckBox->TabIndex = 10;
 			this->generalCheckBox->Text = L"General";
 			this->generalCheckBox->UseVisualStyleBackColor = true;
@@ -308,10 +457,9 @@ namespace WhavenWallpaper {
 			this->animeCheckBox->Checked = true;
 			this->animeCheckBox->CheckState = System::Windows::Forms::CheckState::Checked;
 			this->animeCheckBox->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->animeCheckBox->Location = System::Drawing::Point(216, 143);
-			this->animeCheckBox->Margin = System::Windows::Forms::Padding(4);
+			this->animeCheckBox->Location = System::Drawing::Point(162, 116);
 			this->animeCheckBox->Name = L"animeCheckBox";
-			this->animeCheckBox->Size = System::Drawing::Size(78, 25);
+			this->animeCheckBox->Size = System::Drawing::Size(65, 21);
 			this->animeCheckBox->TabIndex = 11;
 			this->animeCheckBox->Text = L"Anime";
 			this->animeCheckBox->UseVisualStyleBackColor = true;
@@ -320,10 +468,9 @@ namespace WhavenWallpaper {
 			// 
 			this->peopleCheckBox->AutoSize = true;
 			this->peopleCheckBox->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->peopleCheckBox->Location = System::Drawing::Point(411, 143);
-			this->peopleCheckBox->Margin = System::Windows::Forms::Padding(4);
+			this->peopleCheckBox->Location = System::Drawing::Point(308, 116);
 			this->peopleCheckBox->Name = L"peopleCheckBox";
-			this->peopleCheckBox->Size = System::Drawing::Size(79, 25);
+			this->peopleCheckBox->Size = System::Drawing::Size(65, 21);
 			this->peopleCheckBox->TabIndex = 12;
 			this->peopleCheckBox->Text = L"People";
 			this->peopleCheckBox->UseVisualStyleBackColor = true;
@@ -334,10 +481,9 @@ namespace WhavenWallpaper {
 			this->sfwCheckBox->Checked = true;
 			this->sfwCheckBox->CheckState = System::Windows::Forms::CheckState::Checked;
 			this->sfwCheckBox->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->sfwCheckBox->Location = System::Drawing::Point(21, 207);
-			this->sfwCheckBox->Margin = System::Windows::Forms::Padding(4);
+			this->sfwCheckBox->Location = System::Drawing::Point(16, 168);
 			this->sfwCheckBox->Name = L"sfwCheckBox";
-			this->sfwCheckBox->Size = System::Drawing::Size(56, 25);
+			this->sfwCheckBox->Size = System::Drawing::Size(47, 21);
 			this->sfwCheckBox->TabIndex = 13;
 			this->sfwCheckBox->Text = L"sfw";
 			this->sfwCheckBox->UseVisualStyleBackColor = true;
@@ -346,10 +492,9 @@ namespace WhavenWallpaper {
 			// 
 			this->sketchyCheckBox->AutoSize = true;
 			this->sketchyCheckBox->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->sketchyCheckBox->Location = System::Drawing::Point(216, 207);
-			this->sketchyCheckBox->Margin = System::Windows::Forms::Padding(4);
+			this->sketchyCheckBox->Location = System::Drawing::Point(162, 168);
 			this->sketchyCheckBox->Name = L"sketchyCheckBox";
-			this->sketchyCheckBox->Size = System::Drawing::Size(85, 25);
+			this->sketchyCheckBox->Size = System::Drawing::Size(72, 21);
 			this->sketchyCheckBox->TabIndex = 14;
 			this->sketchyCheckBox->Text = L"sketchy";
 			this->sketchyCheckBox->UseVisualStyleBackColor = true;
@@ -358,10 +503,9 @@ namespace WhavenWallpaper {
 			// 
 			this->nsfwCheckBox->AutoSize = true;
 			this->nsfwCheckBox->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->nsfwCheckBox->Location = System::Drawing::Point(411, 207);
-			this->nsfwCheckBox->Margin = System::Windows::Forms::Padding(4);
+			this->nsfwCheckBox->Location = System::Drawing::Point(308, 168);
 			this->nsfwCheckBox->Name = L"nsfwCheckBox";
-			this->nsfwCheckBox->Size = System::Drawing::Size(65, 25);
+			this->nsfwCheckBox->Size = System::Drawing::Size(54, 21);
 			this->nsfwCheckBox->TabIndex = 15;
 			this->nsfwCheckBox->Text = L"nsfw";
 			this->nsfwCheckBox->UseVisualStyleBackColor = true;
@@ -375,10 +519,9 @@ namespace WhavenWallpaper {
 				L"Date Added", L"Relevance", L"Random", L"Views",
 					L"Favorites", L"Toplist"
 			});
-			this->sortingDropdown->Location = System::Drawing::Point(21, 290);
-			this->sortingDropdown->Margin = System::Windows::Forms::Padding(4);
+			this->sortingDropdown->Location = System::Drawing::Point(16, 236);
 			this->sortingDropdown->Name = L"sortingDropdown";
-			this->sortingDropdown->Size = System::Drawing::Size(207, 24);
+			this->sortingDropdown->Size = System::Drawing::Size(156, 21);
 			this->sortingDropdown->TabIndex = 16;
 			// 
 			// orderDropdown
@@ -386,18 +529,16 @@ namespace WhavenWallpaper {
 			this->orderDropdown->AccessibleRole = System::Windows::Forms::AccessibleRole::ScrollBar;
 			this->orderDropdown->DropDownStyle = System::Windows::Forms::ComboBoxStyle::DropDownList;
 			this->orderDropdown->Items->AddRange(gcnew cli::array< System::Object^  >(2) { L"Descending", L"Ascending" });
-			this->orderDropdown->Location = System::Drawing::Point(288, 290);
-			this->orderDropdown->Margin = System::Windows::Forms::Padding(4);
+			this->orderDropdown->Location = System::Drawing::Point(216, 236);
 			this->orderDropdown->Name = L"orderDropdown";
-			this->orderDropdown->Size = System::Drawing::Size(193, 24);
+			this->orderDropdown->Size = System::Drawing::Size(146, 21);
 			this->orderDropdown->TabIndex = 17;
 			// 
 			// searchButton
 			// 
-			this->searchButton->Location = System::Drawing::Point(25, 76);
-			this->searchButton->Margin = System::Windows::Forms::Padding(4);
+			this->searchButton->Location = System::Drawing::Point(19, 62);
 			this->searchButton->Name = L"searchButton";
-			this->searchButton->Size = System::Drawing::Size(472, 28);
+			this->searchButton->Size = System::Drawing::Size(354, 23);
 			this->searchButton->TabIndex = 20;
 			this->searchButton->Text = L"Search";
 			this->searchButton->UseVisualStyleBackColor = true;
@@ -406,10 +547,9 @@ namespace WhavenWallpaper {
 			// pathLinkLabel
 			// 
 			this->pathLinkLabel->AutoSize = true;
-			this->pathLinkLabel->Location = System::Drawing::Point(112, 688);
-			this->pathLinkLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->pathLinkLabel->Location = System::Drawing::Point(84, 559);
 			this->pathLinkLabel->Name = L"pathLinkLabel";
-			this->pathLinkLabel->Size = System::Drawing::Size(135, 17);
+			this->pathLinkLabel->Size = System::Drawing::Size(109, 13);
 			this->pathLinkLabel->TabIndex = 21;
 			this->pathLinkLabel->TabStop = true;
 			this->pathLinkLabel->Text = L"https:://wallhaven.cc";
@@ -419,10 +559,9 @@ namespace WhavenWallpaper {
 			// 
 			this->autoCheckBox->AutoSize = true;
 			this->autoCheckBox->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->autoCheckBox->Location = System::Drawing::Point(21, 646);
-			this->autoCheckBox->Margin = System::Windows::Forms::Padding(4);
+			this->autoCheckBox->Location = System::Drawing::Point(16, 525);
 			this->autoCheckBox->Name = L"autoCheckBox";
-			this->autoCheckBox->Size = System::Drawing::Size(277, 25);
+			this->autoCheckBox->Size = System::Drawing::Size(233, 21);
 			this->autoCheckBox->TabIndex = 22;
 			this->autoCheckBox->Text = L"Select Next Image Automatically in:";
 			this->autoCheckBox->UseVisualStyleBackColor = true;
@@ -432,11 +571,10 @@ namespace WhavenWallpaper {
 			// 
 			this->statusStrip1->ImageScalingSize = System::Drawing::Size(20, 20);
 			this->statusStrip1->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(1) { this->toolStripStatusLabel1 });
-			this->statusStrip1->Location = System::Drawing::Point(0, 720);
+			this->statusStrip1->Location = System::Drawing::Point(0, 583);
 			this->statusStrip1->Name = L"statusStrip1";
-			this->statusStrip1->Padding = System::Windows::Forms::Padding(1, 0, 19, 0);
 			this->statusStrip1->RightToLeft = System::Windows::Forms::RightToLeft::No;
-			this->statusStrip1->Size = System::Drawing::Size(516, 25);
+			this->statusStrip1->Size = System::Drawing::Size(387, 22);
 			this->statusStrip1->TabIndex = 23;
 			this->statusStrip1->Text = L"statusStrip1";
 			// 
@@ -444,7 +582,7 @@ namespace WhavenWallpaper {
 			// 
 			this->toolStripStatusLabel1->Font = (gcnew System::Drawing::Font(L"Segoe UI", 8));
 			this->toolStripStatusLabel1->Name = L"toolStripStatusLabel1";
-			this->toolStripStatusLabel1->Size = System::Drawing::Size(121, 19);
+			this->toolStripStatusLabel1->Size = System::Drawing::Size(103, 17);
 			this->toolStripStatusLabel1->Text = L"Application Ready.";
 			// 
 			// statusStrip2
@@ -454,38 +592,34 @@ namespace WhavenWallpaper {
 			this->statusStrip2->Dock = System::Windows::Forms::DockStyle::None;
 			this->statusStrip2->ImageScalingSize = System::Drawing::Size(20, 20);
 			this->statusStrip2->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(1) { this->toolStripProgressBar1 });
-			this->statusStrip2->Location = System::Drawing::Point(356, 718);
+			this->statusStrip2->Location = System::Drawing::Point(267, 583);
 			this->statusStrip2->Name = L"statusStrip2";
-			this->statusStrip2->Padding = System::Windows::Forms::Padding(1, 0, 19, 0);
 			this->statusStrip2->RightToLeft = System::Windows::Forms::RightToLeft::No;
-			this->statusStrip2->Size = System::Drawing::Size(157, 27);
+			this->statusStrip2->Size = System::Drawing::Size(118, 22);
 			this->statusStrip2->TabIndex = 24;
 			this->statusStrip2->Text = L"statusStrip2";
 			// 
 			// toolStripProgressBar1
 			// 
 			this->toolStripProgressBar1->Name = L"toolStripProgressBar1";
-			this->toolStripProgressBar1->Size = System::Drawing::Size(133, 19);
+			this->toolStripProgressBar1->Size = System::Drawing::Size(100, 16);
 			// 
 			// label1
 			// 
 			this->label1->AutoSize = true;
 			this->label1->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 14, System::Drawing::FontStyle::Bold));
-			this->label1->Location = System::Drawing::Point(20, 16);
-			this->label1->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->label1->Location = System::Drawing::Point(15, 13);
 			this->label1->Name = L"label1";
-			this->label1->Size = System::Drawing::Size(379, 29);
+			this->label1->Size = System::Drawing::Size(358, 24);
 			this->label1->TabIndex = 25;
 			this->label1->Text = L"Search  ——————————————————";
 			// 
 			// pagesListBox
 			// 
 			this->pagesListBox->FormattingEnabled = true;
-			this->pagesListBox->ItemHeight = 16;
-			this->pagesListBox->Location = System::Drawing::Point(21, 457);
-			this->pagesListBox->Margin = System::Windows::Forms::Padding(4);
+			this->pagesListBox->Location = System::Drawing::Point(16, 371);
 			this->pagesListBox->Name = L"pagesListBox";
-			this->pagesListBox->Size = System::Drawing::Size(159, 116);
+			this->pagesListBox->Size = System::Drawing::Size(120, 95);
 			this->pagesListBox->TabIndex = 27;
 			this->pagesListBox->SelectedIndexChanged += gcnew System::EventHandler(this, &MyForm::pagesListBox_SelectedIndexChanged);
 			// 
@@ -493,10 +627,9 @@ namespace WhavenWallpaper {
 			// 
 			this->pagesLabel->AutoSize = true;
 			this->pagesLabel->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10));
-			this->pagesLabel->Location = System::Drawing::Point(17, 432);
-			this->pagesLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->pagesLabel->Location = System::Drawing::Point(13, 351);
 			this->pagesLabel->Name = L"pagesLabel";
-			this->pagesLabel->Size = System::Drawing::Size(61, 20);
+			this->pagesLabel->Size = System::Drawing::Size(52, 17);
 			this->pagesLabel->TabIndex = 28;
 			this->pagesLabel->Text = L"Pages:";
 			// 
@@ -504,39 +637,35 @@ namespace WhavenWallpaper {
 			// 
 			this->resultsBigLabel->AutoSize = true;
 			this->resultsBigLabel->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 14, System::Drawing::FontStyle::Bold));
-			this->resultsBigLabel->Location = System::Drawing::Point(16, 402);
-			this->resultsBigLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->resultsBigLabel->Location = System::Drawing::Point(12, 327);
 			this->resultsBigLabel->Name = L"resultsBigLabel";
-			this->resultsBigLabel->Size = System::Drawing::Size(384, 29);
+			this->resultsBigLabel->Size = System::Drawing::Size(360, 24);
 			this->resultsBigLabel->TabIndex = 29;
 			this->resultsBigLabel->Text = L"Results  ——————————————————";
 			// 
 			// oeapnLabel
 			// 
 			this->oeapnLabel->AutoSize = true;
-			this->oeapnLabel->Location = System::Drawing::Point(17, 577);
-			this->oeapnLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->oeapnLabel->Location = System::Drawing::Point(13, 469);
 			this->oeapnLabel->Name = L"oeapnLabel";
-			this->oeapnLabel->Size = System::Drawing::Size(165, 17);
+			this->oeapnLabel->Size = System::Drawing::Size(123, 13);
 			this->oeapnLabel->TabIndex = 30;
 			this->oeapnLabel->Text = L"or Enter a page Number:";
 			// 
 			// pageNumberLabel
 			// 
 			this->pageNumberLabel->AutoSize = true;
-			this->pageNumberLabel->Location = System::Drawing::Point(17, 593);
-			this->pageNumberLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->pageNumberLabel->Location = System::Drawing::Point(13, 482);
 			this->pageNumberLabel->Name = L"pageNumberLabel";
-			this->pageNumberLabel->Size = System::Drawing::Size(62, 17);
+			this->pageNumberLabel->Size = System::Drawing::Size(46, 13);
 			this->pageNumberLabel->TabIndex = 31;
 			this->pageNumberLabel->Text = L"(0 page)";
 			// 
 			// pageNumberTextBox
 			// 
-			this->pageNumberTextBox->Location = System::Drawing::Point(21, 614);
-			this->pageNumberTextBox->Margin = System::Windows::Forms::Padding(4);
+			this->pageNumberTextBox->Location = System::Drawing::Point(16, 499);
 			this->pageNumberTextBox->Name = L"pageNumberTextBox";
-			this->pageNumberTextBox->Size = System::Drawing::Size(159, 22);
+			this->pageNumberTextBox->Size = System::Drawing::Size(120, 20);
 			this->pageNumberTextBox->TabIndex = 32;
 			this->pageNumberTextBox->KeyDown += gcnew System::Windows::Forms::KeyEventHandler(this, &MyForm::pageNumberTextBox_KeyDown);
 			this->pageNumberTextBox->KeyPress += gcnew System::Windows::Forms::KeyPressEventHandler(this, &MyForm::pageNumberTextBox_KeyPress);
@@ -544,11 +673,9 @@ namespace WhavenWallpaper {
 			// resultsListBox
 			// 
 			this->resultsListBox->FormattingEnabled = true;
-			this->resultsListBox->ItemHeight = 16;
-			this->resultsListBox->Location = System::Drawing::Point(288, 457);
-			this->resultsListBox->Margin = System::Windows::Forms::Padding(4);
+			this->resultsListBox->Location = System::Drawing::Point(216, 371);
 			this->resultsListBox->Name = L"resultsListBox";
-			this->resultsListBox->Size = System::Drawing::Size(159, 116);
+			this->resultsListBox->Size = System::Drawing::Size(120, 95);
 			this->resultsListBox->TabIndex = 33;
 			this->resultsListBox->SelectedIndexChanged += gcnew System::EventHandler(this, &MyForm::resultsListBox_SelectedIndexChanged);
 			// 
@@ -556,40 +683,36 @@ namespace WhavenWallpaper {
 			// 
 			this->resultsLabel->AutoSize = true;
 			this->resultsLabel->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10));
-			this->resultsLabel->Location = System::Drawing::Point(284, 432);
-			this->resultsLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->resultsLabel->Location = System::Drawing::Point(213, 351);
 			this->resultsLabel->Name = L"resultsLabel";
-			this->resultsLabel->Size = System::Drawing::Size(71, 20);
+			this->resultsLabel->Size = System::Drawing::Size(59, 17);
 			this->resultsLabel->TabIndex = 34;
 			this->resultsLabel->Text = L"Results:";
 			// 
 			// resultNumberLabel
 			// 
 			this->resultNumberLabel->AutoSize = true;
-			this->resultNumberLabel->Location = System::Drawing::Point(284, 593);
-			this->resultNumberLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->resultNumberLabel->Location = System::Drawing::Point(213, 482);
 			this->resultNumberLabel->Name = L"resultNumberLabel";
-			this->resultNumberLabel->Size = System::Drawing::Size(65, 17);
+			this->resultNumberLabel->Size = System::Drawing::Size(47, 13);
 			this->resultNumberLabel->TabIndex = 36;
 			this->resultNumberLabel->Text = L"(0 result)";
 			// 
 			// oearnLabel
 			// 
 			this->oearnLabel->AutoSize = true;
-			this->oearnLabel->Location = System::Drawing::Point(284, 577);
-			this->oearnLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->oearnLabel->Location = System::Drawing::Point(213, 469);
 			this->oearnLabel->Name = L"oearnLabel";
-			this->oearnLabel->Size = System::Drawing::Size(168, 17);
+			this->oearnLabel->Size = System::Drawing::Size(124, 13);
 			this->oearnLabel->TabIndex = 35;
 			this->oearnLabel->Text = L"or Enter a result Number:";
 			// 
 			// resolutionXInput
 			// 
 			this->resolutionXInput->Enabled = false;
-			this->resolutionXInput->Location = System::Drawing::Point(21, 361);
-			this->resolutionXInput->Margin = System::Windows::Forms::Padding(4);
+			this->resolutionXInput->Location = System::Drawing::Point(16, 293);
 			this->resolutionXInput->Name = L"resolutionXInput";
-			this->resolutionXInput->Size = System::Drawing::Size(136, 22);
+			this->resolutionXInput->Size = System::Drawing::Size(103, 20);
 			this->resolutionXInput->TabIndex = 37;
 			this->resolutionXInput->Text = L"1920";
 			this->resolutionXInput->KeyPress += gcnew System::Windows::Forms::KeyPressEventHandler(this, &MyForm::resolutionXInput_KeyPress);
@@ -597,10 +720,9 @@ namespace WhavenWallpaper {
 			// resolutionYInput
 			// 
 			this->resolutionYInput->Enabled = false;
-			this->resolutionYInput->Location = System::Drawing::Point(193, 361);
-			this->resolutionYInput->Margin = System::Windows::Forms::Padding(4);
+			this->resolutionYInput->Location = System::Drawing::Point(145, 293);
 			this->resolutionYInput->Name = L"resolutionYInput";
-			this->resolutionYInput->Size = System::Drawing::Size(136, 22);
+			this->resolutionYInput->Size = System::Drawing::Size(103, 20);
 			this->resolutionYInput->TabIndex = 38;
 			this->resolutionYInput->Text = L"1080";
 			this->resolutionYInput->KeyPress += gcnew System::Windows::Forms::KeyPressEventHandler(this, &MyForm::resolutionYInput_KeyPress);
@@ -610,20 +732,18 @@ namespace WhavenWallpaper {
 			this->resolutionSeperatorLabel->AutoSize = true;
 			this->resolutionSeperatorLabel->Enabled = false;
 			this->resolutionSeperatorLabel->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->resolutionSeperatorLabel->Location = System::Drawing::Point(167, 363);
-			this->resolutionSeperatorLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->resolutionSeperatorLabel->Location = System::Drawing::Point(125, 295);
 			this->resolutionSeperatorLabel->Name = L"resolutionSeperatorLabel";
-			this->resolutionSeperatorLabel->Size = System::Drawing::Size(18, 21);
+			this->resolutionSeperatorLabel->Size = System::Drawing::Size(14, 17);
 			this->resolutionSeperatorLabel->TabIndex = 39;
 			this->resolutionSeperatorLabel->Text = L"x";
 			// 
 			// atLeastRadioButton
 			// 
 			this->atLeastRadioButton->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->atLeastRadioButton->Location = System::Drawing::Point(21, 330);
-			this->atLeastRadioButton->Margin = System::Windows::Forms::Padding(4);
+			this->atLeastRadioButton->Location = System::Drawing::Point(16, 268);
 			this->atLeastRadioButton->Name = L"atLeastRadioButton";
-			this->atLeastRadioButton->Size = System::Drawing::Size(112, 21);
+			this->atLeastRadioButton->Size = System::Drawing::Size(84, 17);
 			this->atLeastRadioButton->TabIndex = 0;
 			this->atLeastRadioButton->Text = L"At Least:";
 			this->atLeastRadioButton->UseVisualStyleBackColor = true;
@@ -633,10 +753,9 @@ namespace WhavenWallpaper {
 			// 
 			this->exactlyRadioButton->AutoSize = true;
 			this->exactlyRadioButton->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->exactlyRadioButton->Location = System::Drawing::Point(181, 327);
-			this->exactlyRadioButton->Margin = System::Windows::Forms::Padding(4);
+			this->exactlyRadioButton->Location = System::Drawing::Point(136, 266);
 			this->exactlyRadioButton->Name = L"exactlyRadioButton";
-			this->exactlyRadioButton->Size = System::Drawing::Size(81, 25);
+			this->exactlyRadioButton->Size = System::Drawing::Size(68, 21);
 			this->exactlyRadioButton->TabIndex = 40;
 			this->exactlyRadioButton->Text = L"Exactly";
 			this->exactlyRadioButton->UseVisualStyleBackColor = true;
@@ -647,10 +766,9 @@ namespace WhavenWallpaper {
 			this->pixelsLabel->AutoSize = true;
 			this->pixelsLabel->Enabled = false;
 			this->pixelsLabel->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->pixelsLabel->Location = System::Drawing::Point(339, 363);
-			this->pixelsLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->pixelsLabel->Location = System::Drawing::Point(254, 295);
 			this->pixelsLabel->Name = L"pixelsLabel";
-			this->pixelsLabel->Size = System::Drawing::Size(50, 21);
+			this->pixelsLabel->Size = System::Drawing::Size(40, 17);
 			this->pixelsLabel->TabIndex = 41;
 			this->pixelsLabel->Text = L"pixels";
 			// 
@@ -659,10 +777,9 @@ namespace WhavenWallpaper {
 			this->noSelectRadioButton->AutoSize = true;
 			this->noSelectRadioButton->Checked = true;
 			this->noSelectRadioButton->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->noSelectRadioButton->Location = System::Drawing::Point(296, 327);
-			this->noSelectRadioButton->Margin = System::Windows::Forms::Padding(4);
+			this->noSelectRadioButton->Location = System::Drawing::Point(222, 266);
 			this->noSelectRadioButton->Name = L"noSelectRadioButton";
-			this->noSelectRadioButton->Size = System::Drawing::Size(185, 25);
+			this->noSelectRadioButton->Size = System::Drawing::Size(151, 21);
 			this->noSelectRadioButton->TabIndex = 42;
 			this->noSelectRadioButton->TabStop = true;
 			this->noSelectRadioButton->Text = L"No Resolution Sorting";
@@ -671,20 +788,18 @@ namespace WhavenWallpaper {
 			// 
 			// resultNumberTextbox
 			// 
-			this->resultNumberTextbox->Location = System::Drawing::Point(288, 614);
-			this->resultNumberTextbox->Margin = System::Windows::Forms::Padding(4);
+			this->resultNumberTextbox->Location = System::Drawing::Point(216, 499);
 			this->resultNumberTextbox->Name = L"resultNumberTextbox";
-			this->resultNumberTextbox->Size = System::Drawing::Size(159, 22);
+			this->resultNumberTextbox->Size = System::Drawing::Size(120, 20);
 			this->resultNumberTextbox->TabIndex = 43;
 			this->resultNumberTextbox->KeyDown += gcnew System::Windows::Forms::KeyEventHandler(this, &MyForm::resultNumberTextbox_KeyDown);
 			this->resultNumberTextbox->KeyPress += gcnew System::Windows::Forms::KeyPressEventHandler(this, &MyForm::resultNumberTextbox_KeyPress);
 			// 
 			// pageOkButton
 			// 
-			this->pageOkButton->Location = System::Drawing::Point(189, 612);
-			this->pageOkButton->Margin = System::Windows::Forms::Padding(4);
+			this->pageOkButton->Location = System::Drawing::Point(142, 497);
 			this->pageOkButton->Name = L"pageOkButton";
-			this->pageOkButton->Size = System::Drawing::Size(57, 28);
+			this->pageOkButton->Size = System::Drawing::Size(43, 23);
 			this->pageOkButton->TabIndex = 45;
 			this->pageOkButton->Text = L"Ok";
 			this->pageOkButton->UseVisualStyleBackColor = true;
@@ -692,10 +807,9 @@ namespace WhavenWallpaper {
 			// 
 			// resultOkButton
 			// 
-			this->resultOkButton->Location = System::Drawing::Point(456, 612);
-			this->resultOkButton->Margin = System::Windows::Forms::Padding(4);
+			this->resultOkButton->Location = System::Drawing::Point(342, 497);
 			this->resultOkButton->Name = L"resultOkButton";
-			this->resultOkButton->Size = System::Drawing::Size(57, 28);
+			this->resultOkButton->Size = System::Drawing::Size(43, 23);
 			this->resultOkButton->TabIndex = 46;
 			this->resultOkButton->Text = L"Ok";
 			this->resultOkButton->UseVisualStyleBackColor = true;
@@ -704,20 +818,18 @@ namespace WhavenWallpaper {
 			// imageLinkLabel
 			// 
 			this->imageLinkLabel->AutoSize = true;
-			this->imageLinkLabel->Location = System::Drawing::Point(21, 688);
-			this->imageLinkLabel->Margin = System::Windows::Forms::Padding(4, 0, 4, 0);
+			this->imageLinkLabel->Location = System::Drawing::Point(16, 559);
 			this->imageLinkLabel->Name = L"imageLinkLabel";
-			this->imageLinkLabel->Size = System::Drawing::Size(80, 17);
+			this->imageLinkLabel->Size = System::Drawing::Size(62, 13);
 			this->imageLinkLabel->TabIndex = 47;
 			this->imageLinkLabel->Text = L"Image Link:";
 			// 
 			// autoCounterInput
 			// 
 			this->autoCounterInput->Enabled = false;
-			this->autoCounterInput->Location = System::Drawing::Point(327, 646);
-			this->autoCounterInput->Margin = System::Windows::Forms::Padding(4);
+			this->autoCounterInput->Location = System::Drawing::Point(245, 525);
 			this->autoCounterInput->Name = L"autoCounterInput";
-			this->autoCounterInput->Size = System::Drawing::Size(81, 22);
+			this->autoCounterInput->Size = System::Drawing::Size(62, 20);
 			this->autoCounterInput->TabIndex = 48;
 			this->autoCounterInput->Text = L"30";
 			this->autoCounterInput->KeyDown += gcnew System::Windows::Forms::KeyEventHandler(this, &MyForm::autoCounterInput_KeyDown);
@@ -728,10 +840,9 @@ namespace WhavenWallpaper {
 			this->counterDropDown->AccessibleRole = System::Windows::Forms::AccessibleRole::ScrollBar;
 			this->counterDropDown->DropDownStyle = System::Windows::Forms::ComboBoxStyle::DropDownList;
 			this->counterDropDown->Items->AddRange(gcnew cli::array< System::Object^  >(3) { L"sec", L"min", L"hr" });
-			this->counterDropDown->Location = System::Drawing::Point(417, 645);
-			this->counterDropDown->Margin = System::Windows::Forms::Padding(4);
+			this->counterDropDown->Location = System::Drawing::Point(313, 524);
 			this->counterDropDown->Name = L"counterDropDown";
-			this->counterDropDown->Size = System::Drawing::Size(64, 24);
+			this->counterDropDown->Size = System::Drawing::Size(49, 21);
 			this->counterDropDown->TabIndex = 49;
 			// 
 			// notifyIcon1
@@ -740,13 +851,23 @@ namespace WhavenWallpaper {
 			this->notifyIcon1->Visible = true;
 			this->notifyIcon1->Click += gcnew System::EventHandler(this, &MyForm::notifyIcon1_Click);
 			// 
+			// optionsButton
+			// 
+			this->optionsButton->Location = System::Drawing::Point(245, 554);
+			this->optionsButton->Name = L"optionsButton";
+			this->optionsButton->Size = System::Drawing::Size(75, 23);
+			this->optionsButton->TabIndex = 50;
+			this->optionsButton->Text = L"Options";
+			this->optionsButton->UseVisualStyleBackColor = true;
+			this->optionsButton->Click += gcnew System::EventHandler(this, &MyForm::optionsButton_Click);
+			// 
 			// MyForm
 			// 
-			this->AcceptButton = this->searchButton;
-			this->AutoScaleDimensions = System::Drawing::SizeF(8, 16);
+			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->BackColor = System::Drawing::SystemColors::Control;
-			this->ClientSize = System::Drawing::Size(516, 745);
+			this->ClientSize = System::Drawing::Size(387, 605);
+			this->Controls->Add(this->optionsButton);
 			this->Controls->Add(this->counterDropDown);
 			this->Controls->Add(this->autoCounterInput);
 			this->Controls->Add(this->imageLinkLabel);
@@ -792,7 +913,6 @@ namespace WhavenWallpaper {
 			this->Controls->Add(this->nsfwCheckBox);
 			this->ForeColor = System::Drawing::SystemColors::ControlText;
 			this->FormBorderStyle = System::Windows::Forms::FormBorderStyle::FixedSingle;
-			this->Margin = System::Windows::Forms::Padding(4);
 			this->Name = L"MyForm";
 			this->Text = L"WHaven Wallpaper";
 			this->Resize += gcnew System::EventHandler(this, &MyForm::MyForm_Resize);
@@ -805,6 +925,8 @@ namespace WhavenWallpaper {
 
 		}
 #pragma endregion
+
+#pragma region Variables
 		//////////////////////////////////////////////////////////////////////////////
 		//																			//
 		// VARIABLES																//
@@ -816,6 +938,10 @@ namespace WhavenWallpaper {
 
 		// Global repeat thread. Why Global? because I will stop this thread when automatically repeat checkbox unchecked or program stopped
 		private: Thread^ counterThread;
+
+		// Options class instance for showing options.
+		Options::options^ opt = gcnew Options::options();
+
 
 		// Global paths, shorturls, IDs, fileTypes, purity variables. I use these variables in many functions.
 		private: array<String^>^ paths;
@@ -833,10 +959,10 @@ namespace WhavenWallpaper {
 		private: bool repeatInit = false;
 
 		// Savesession: I use this variable when user wants to save when exit.
-		private: bool savesession = false;
+		private: bool savesession = true;
 
 		// Selected Result Index: I use this variable for checking selected result.
-		private: int selectedResultIndex = 0;
+		private: int result = 0;
 
 		// Page: I use this variable for checkind selected page index.
 		private: int page = 0;
@@ -845,10 +971,22 @@ namespace WhavenWallpaper {
 		private: int counter;
 
 		// Download: I use this variable for user wants to download or not. 
-		private: bool download;
+		private: bool download = true;
 
+		// Page Number: I use this variable for checking page number in functions.
+		private: int pageNumber;
 
+		// Page Number: I use this variable for checking result number in functions.
+		private: int resultNumber;
 
+		// Page Number: I use this variable for checking user when changed app for saving state of app.
+		private: bool changed;
+
+		// appSessionInit: I check this variable for when app initialized(Look at constructor.)
+		private: bool appSessionInit = false;
+#pragma endregion
+
+#pragma region Functions
 		//////////////////////////////////////////////////////////////////////////////
 		//																			//
 		// FUNCTIONS																//
@@ -905,12 +1043,14 @@ namespace WhavenWallpaper {
 		private: delegate String^ qBuilder(int statusCode);
 		private: String^ queryBuilder(int statusCode) 
 		{
-			if (statusCode != 0) 
+			// If app not initialized and page changed
+			if (statusCode != 0 && !appSessionInit) 
 			{
 				// if page changed then change page index.
 				page = this->pagesListBox->SelectedIndex;
 			}
-			else 
+			// If new query sended and app not initialized.
+			else if(statusCode == 0 && !appSessionInit)
 			{
 				// If user sends to new query then select page with 1
 				page = 0;
@@ -922,7 +1062,7 @@ namespace WhavenWallpaper {
 			std::string url = "https://wallhaven.cc/api/v1/search?";
 
 			// If api key specified then add url to api key
-			if (apikey != gcnew String(""))
+			if (apikey != gcnew String("") && apikey!=nullptr)
 				url += "apikey=" + context.marshal_as<std::string>(apikey);
 
 			// Add search Query(q) to url.
@@ -1095,6 +1235,7 @@ namespace WhavenWallpaper {
 		//
 		private: delegate System::String^ getCName(Windows::Forms::Control^ sendedComponent);
 		private: System::String^ getComponentName(Windows::Forms::Control^ sendedComponent) {
+			// Get Component name.
 			return sendedComponent->Name;
 		}
 
@@ -1207,6 +1348,7 @@ namespace WhavenWallpaper {
 		private: delegate System::Void _updatePageLabel(String^ pageLabelText);
 		private: System::Void updatePageLabel(String^ pageLabelText)
 		{
+			// Set page label text.
 			this->pageNumberLabel->Text = pageLabelText;
 		}
 
@@ -1222,6 +1364,7 @@ namespace WhavenWallpaper {
 		private: delegate System::Void _updateResultsLabel(String^ resultLabelText);
 		private: System::Void updateResultsLabel(String^ resultLabelText)
 		{
+			// Set result label text.
 			this->resultNumberLabel->Text = resultLabelText;
 		}
 
@@ -1331,10 +1474,10 @@ namespace WhavenWallpaper {
 				}
 
 				// Increase Result by 1.
-				selectedResultIndex += 1;
+				result += 1;
 
 				// If Result > than resultNumber, than select next page.
-				if (selectedResultIndex >= paths->Length) {
+				if (result >= paths->Length) {
 					// Increase page number.
 					page += 1;
 
@@ -1355,7 +1498,7 @@ namespace WhavenWallpaper {
 					selectR^ setRs = gcnew selectR(this, &MyForm::selectResult);
 
 					// Select next result.
-					Control::Invoke(setRs, selectedResultIndex);
+					Control::Invoke(setRs, result);
 
 					// Sleep for counter(sec/min/hr).
 					Thread::Sleep(counter);
@@ -1372,6 +1515,7 @@ namespace WhavenWallpaper {
 		//
 		private: delegate int _getCounterInput();
 		private: int getCounterInput() {
+			// Get counter input.
 			return int::Parse(this->autoCounterInput->Text);
 		}
 
@@ -1384,10 +1528,12 @@ namespace WhavenWallpaper {
 		//
 		private: delegate int _getCounterIndex();
 		private: int getCounterIndex() {
+			// Get counter dropdown index.
 			return this->counterDropDown->SelectedIndex;
 		}
+#pragma endregion
 
-
+#pragma region CallBacks
 		//////////////////////////////////////////////////////////////////////////////
 		//																			//
 		// CALLBACKS																//
@@ -1453,16 +1599,15 @@ namespace WhavenWallpaper {
 			if (args->Item1 != 27272727) {
 
 				// Get variables frop tuple.
-				int pageNumber = args->Item1;
-				int resultNumber = args->Item2;
+				pageNumber = args->Item1;
+				resultNumber = args->Item2;
 				paths = args->Item3;
 				shortUrls = args->Item4;
 				IDs = args->Item5;
 				fileTypes = args->Item6;
 				purity = args->Item7;
 
-				// Reset Result Index
-				selectedResultIndex = 0;
+
 
 				// Update strip(StatusBar).
 				Control::Invoke(us, gcnew String("Json process Completed Downloading jpeg..."), 50, 0);
@@ -1508,13 +1653,9 @@ namespace WhavenWallpaper {
 				// Send result strings to setResultsRange
 				Control::Invoke(setRsRange, gcnew array<Object^>{resultsItemObject});
 
-				// This is supposed to mean if not page changed and if sent new query, but idk.
 				if (pageNumber >= 1) {
-					// Set pageInýt true for dont trigger selectedPageChanged event.
+					// Set pageInit true for dont trigger selectedPageChanged event.
 					pageInit = true;
-
-					// Set resultInit true for dont trigger selectedResultChanged event.
-					resultInit = true;
 
 					// Create setPage delegate.
 					selectP^ setPg = gcnew selectP(this, &MyForm::selectPage);
@@ -1525,8 +1666,30 @@ namespace WhavenWallpaper {
 					// Create selectResult Instance.
 					selectR^ setRs = gcnew selectR(this, &MyForm::selectResult);
 
-					// Set result index in 0 because page changed means select result 1.
-					Control::Invoke(setRs, 0);
+					// If app not inititialized reset result.
+					if (!appSessionInit)
+					{
+						// Set resultInit true for dont trigger selectedResultChanged event.
+						resultInit = true;
+
+						// Reset Result Index
+						result = 0;
+
+						// Set result index in 0 because results reloaded.
+						Control::Invoke(setRs, result);
+					}
+					// If app inititialized select result
+					else
+					{
+						// If user change result number from json control that
+						if (result > IDs->Length)
+							result = IDs->Length - 1;
+						// Set result index in result because app initialized.
+						Control::Invoke(setRs, result);
+
+						// Set appSessionInit false because we are finished initializing.
+						appSessionInit = false;
+					}
 
 					// Create updatePageLabel delegate.
 					_updatePageLabel^ uPageLabel = gcnew _updatePageLabel(this, &MyForm::updatePageLabel);
@@ -1586,7 +1749,7 @@ namespace WhavenWallpaper {
 				setWallpaperCallback^ _setWallpaperCallback = gcnew setWallpaperCallback(this, &MyForm::sWallpaperCallback);
 
 				// Create JpegUtils instance for set Wallpaper.
-				JpegUtils^ jUtil = gcnew JpegUtils(IDs[selectedResultIndex], fileTypes[selectedResultIndex], purity[selectedResultIndex], download, _setWallpaperCallback);
+				JpegUtils^ jUtil = gcnew JpegUtils(IDs[result], fileTypes[result], purity[result], download, _setWallpaperCallback);
 
 				// Create Thread for created JpegUtils instance.
 				Thread^ setWallpaper = gcnew Thread(gcnew ThreadStart(jUtil, &JpegUtils::setWallpaper));
@@ -1650,8 +1813,7 @@ namespace WhavenWallpaper {
 			}
 
 		}
-
-
+#pragma endregion
 
 		//////////////////////////////////////////////////////////////////////////////
 		//																			//
@@ -1664,10 +1826,13 @@ namespace WhavenWallpaper {
 		//
 
 		//
-		// Event: searchButton_Click: Event for search button when clicked.
+		// Event: searchButton_Click: Event for when search button clicked.
 		//
 		private: System::Void searchButton_Click(System::Object^ sender, System::EventArgs^ e)
 		{
+			// App changed so I can save. I check this variable in destructor
+			if (!changed)
+				changed = true;
 			// Updating strip(Statusbar).
 			_updateStrip^ us = gcnew _updateStrip(this, &MyForm::updateStrip);
 			Control::Invoke(us, gcnew String("Building url..."), 5, 0);
@@ -1744,6 +1909,10 @@ namespace WhavenWallpaper {
 		// Event: resultsListBox_SelectedIndexChanged: Event for when result list(known as resultsListBox) index changed.
 		//
 		private: System::Void resultsListBox_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
+			// App changed so I can save. I check this variable in destructor
+			if (!changed)
+				changed = true;
+
 			// If result don't changed by user, then quit the function because I actually handle that in other functions.
 			if (resultInit)
 			{
@@ -1765,19 +1934,19 @@ namespace WhavenWallpaper {
 			disableComponents->Start(exceptedComponents);
 
 			// Change Selected Result Index.
-			selectedResultIndex = this->resultsListBox->SelectedIndex;
+			result = this->resultsListBox->SelectedIndex;
 
 			// Create Delegate for update shortlink.
 			uPathLink^ uPath = gcnew uPathLink(this, &MyForm::updatePathLink);
 
 			// Update shortlink with shorturl.
-			Control::Invoke(uPath, shortUrls[selectedResultIndex]);
+			Control::Invoke(uPath, shortUrls[result]);
 
 			// Create callback for downloading jpeg.
 			jpegDownloadCallback^ jCB = gcnew jpegDownloadCallback(this, &MyForm::jpegDownloadCback);
 
 			// Create JpegUtils instance with jpegDownloadCallback.
-			JpegUtils^ jUtils = gcnew JpegUtils(paths[selectedResultIndex], IDs[selectedResultIndex], fileTypes[selectedResultIndex], purity[selectedResultIndex], download, jCB);
+			JpegUtils^ jUtils = gcnew JpegUtils(paths[result], IDs[result], fileTypes[result], purity[result], download, jCB);
 
 			// Create Thread for created JpegUtils instance.
 			Thread^ downloadJpeg = gcnew Thread(gcnew ThreadStart(jUtils, &JpegUtils::download_jpeg));
@@ -1800,6 +1969,10 @@ namespace WhavenWallpaper {
 		// Event: resultsListBox_SelectedIndexChanged: Event for when result list(known as resultsListBox) index changed.
 		//
 		private: System::Void pagesListBox_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
+			// App changed so I can save. I check this variable in destructor
+			if (!changed)
+				changed = true;
+
 			// If page don't changed by user, then quit the function because I actually handle that in other functions.
 			if (pageInit)
 			{
@@ -1858,7 +2031,7 @@ namespace WhavenWallpaper {
 			// If user clicks enter key
 			if (e->KeyData == System::Windows::Forms::Keys::Enter)
 				// Then run searchButton_Click event.
-				searchButton_Click("", nullptr);
+				this->searchButton_Click("", nullptr);
 		}
 
 		//
@@ -1961,16 +2134,31 @@ namespace WhavenWallpaper {
 		// Event: pageOkButton_Click: Handles when user clicks Ok button in pages.
 		//
 		private: System::Void pageOkButton_Click(System::Object^ sender, System::EventArgs^ e) {
-			// If you can parse this input with integer then go on
+
+			// Create virtual instance for trying parse. If can't parse then our page index not changed.
+			int _page;
+			// Try to parse int, if input text is not integer then do nothing.
 			try 
 			{
-				page = int::Parse(this->pageNumberTextBox->Text);
+				// Parsing int and indexing(-1)
+				_page = int::Parse(this->pageNumberTextBox->Text) - 1;
 			}
-			// If you cant then select selectedIndex
-			catch (Exception^)
+			catch (Exception^) 
 			{
-				page = this->pagesListBox->SelectedIndex;
+				// If can't parse, then do nothing.
+				return;
 			}
+			// If not error occured then change page index.
+			page = _page;
+
+			// If user somehow typed page number to smaller than 0, then equal that to 0.
+			if (page < 0)
+				page = 0;
+
+			// If user typed page to bigger than last page number, then select last page.
+			if (page > pageNumber)
+				page = pageNumber - 1;
+
 
 			// Create delegate instance for selectPage and when selected page changed it triggers pagesListBox_SelectedIndexChanged event
 			selectP^ setPg = gcnew selectP(this, &MyForm::selectPage);
@@ -1983,23 +2171,35 @@ namespace WhavenWallpaper {
 		// Event: resultOkButton_Click: Handles when user clicks Ok button in results.
 		//
 		private: System::Void resultOkButton_Click(System::Object^ sender, System::EventArgs^ e) {
-			// If you can parse this input with integer then go on
+
+			// Create virtual instance for trying parse. If can't parse then our page index not changed.
+			int _result;
+			// Try to parse int, if input text is not integer then do nothing.
 			try
 			{
-				selectedResultIndex = int::Parse(this->resultNumberTextbox->Text);
+				_result = int::Parse(this->resultNumberTextbox->Text) - 1;
 
 			}
-			// If you cant then select selectedIndex
 			catch (Exception^)
 			{
-				selectedResultIndex = this->resultsListBox->SelectedIndex;
+				return;
 			}
+			// If not error occured then change result index.
+			result = _result;
+
+			// If user somehow typed result number to smaller than 0, then equal that to 0.
+			if (result < 0)
+				result = 0;
+
+			// If user typed result to bigger than last result number, then select last result.
+			if (result > resultNumber)
+				result = resultNumber - 1;
 
 			// Create delegate instance for selectResult and when selected result changed it triggers resultsListBox_SelectedIndexChanged event
 			selectR^ setRs = gcnew selectR(this, &MyForm::selectResult);
 
 			// Run created delegate. Why invoke? Because Invoke safe with when thread is running
-			Control::Invoke(setRs, selectedResultIndex);
+			Control::Invoke(setRs, result);
 		}
 
 		//
@@ -2009,7 +2209,7 @@ namespace WhavenWallpaper {
 			// If user clicks enter key
 			if (e->KeyData == System::Windows::Forms::Keys::Enter)
 				// Then run pageOkButton_Click event.
-				pageOkButton_Click("", nullptr);
+				this->pageOkButton_Click("", nullptr);
 		}
 
 		//
@@ -2019,7 +2219,7 @@ namespace WhavenWallpaper {
 			// If user clicks enter key
 			if (e->KeyData == System::Windows::Forms::Keys::Enter)
 				// Then run resultOkButton_Click event.
-				resultOkButton_Click("", nullptr);
+				this->resultOkButton_Click("", nullptr);
 		}
 
 		//
@@ -2049,13 +2249,18 @@ namespace WhavenWallpaper {
 				this->Visible = false;
 			}
 		}
+		//
+		// Event: MyForm_Resize: Event for when options button clicked.
+		//
+		private: System::Void optionsButton_Click(System::Object^ sender, System::EventArgs^ e) {
+			if (opt->IsDisposed)
+				opt = gcnew Options::options();
+			// Change options visible state to true.
+			
+			opt->Visible = !(opt->Visible);
+
+			// Change windows state for focusing options.
+			opt->WindowState = System::Windows::Forms::FormWindowState::Normal;
+		}
 	};
 }
-
-
-
-	
-
-
-
-

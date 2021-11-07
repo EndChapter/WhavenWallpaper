@@ -137,6 +137,7 @@
       <AdditionalDependencies />
       <EntryPointSymbol>Main</EntryPointSymbol>
       <SubSystem>Windows</SubSystem>
+      <EmbedManagedResourceFile>assets/Icons/favicon.ico;%(EmbedManagedResourceFile)</EmbedManagedResourceFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -150,6 +151,7 @@
       <AdditionalDependencies>ole32.lib;comctl32.lib;advapi32.lib;user32.lib;C:\Users\Edip\source\repos\Wallhaven Background Changer\Wallhaven Background Changer\libs\*;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <EntryPointSymbol>Main</EntryPointSymbol>
+      <EmbedManagedResourceFile>assets\\icons\\favicon.ico;%(EmbedManagedResourceFile)</EmbedManagedResourceFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -168,6 +170,9 @@
     <ClInclude Include="MyForm1.h">
       <FileType>CppForm</FileType>
     </ClInclude>
+    <ClInclude Include="options.h">
+      <FileType>CppForm</FileType>
+    </ClInclude>
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
@@ -180,6 +185,9 @@
   <ItemGroup>
     <EmbeddedResource Include="MyForm1.resx">
       <DependentUpon>MyForm1.h</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="options.resx">
+      <DependentUpon>options.h</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
