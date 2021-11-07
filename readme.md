@@ -55,4 +55,4 @@ I tested my app but probably still some bugs out there because I don't have test
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
-[GNU](https://www.gnu.org/licenses/gpl-3.0-standalone.html)
+[GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0-standalone.html)
