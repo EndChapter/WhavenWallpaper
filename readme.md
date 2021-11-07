@@ -22,7 +22,7 @@ WHaven Wallpaper is a desktop wallpaper change program for change your wallpaper
 
 - You also have progress and status bar so you can follow progress.
 
-- It is only 2 MB and very lightweight.
+- It is only 0.5 MB and very lightweight.
 
 - When you minimize app, the app creates a tray icon in your taskbar and is hidden. When you click the tray icon app will be visible and you can use app again.
 
