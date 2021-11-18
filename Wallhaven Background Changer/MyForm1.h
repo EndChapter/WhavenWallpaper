@@ -157,7 +157,13 @@ namespace WhavenWallpaper {
 				savesession = j["options"]["savesession"];
 				
 				// Getting collection search status
-				collectionSearchState = j["options"]["collections"];
+				try {
+					collectionSearchState = j["options"]["collections"];
+				}
+				catch (Exception^)
+				{
+					collectionSearchState = false;
+				}
 			}
 			// If Json file not exist
 			else
