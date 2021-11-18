@@ -35,6 +35,7 @@
 #include "JsonUtils.h"
 #include "JpegUtils.h"
 #include "options.h"
+#include "collects.h"
 #include "MyForm1.h"
 
 // Include ws2_32.lib

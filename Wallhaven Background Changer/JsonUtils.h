@@ -51,6 +51,12 @@ public ref struct JsonUtils
 		jsProcCb = jsProc;
 	}
 
+	// Default Constructor for processing collections json
+	public: JsonUtils(String^ j, jsProcessCallback^ jsProc) {
+		json = j;
+		jsProcCb = jsProc;
+	}
+
 	//
 	// Function: jsonRequest: Sends Json request to wallhaven.cc for getting image results.
 	// 
@@ -64,8 +70,25 @@ public ref struct JsonUtils
 		// Telling server to we are not a robot.
 		request->Credentials = System::Net::CredentialCache::DefaultCredentials;
 
-		// Get Response
-		System::Net::HttpWebResponse^ response = dynamic_cast<System::Net::HttpWebResponse^>(request->GetResponse());
+		// Creating response variable for getting response
+		System::Net::HttpWebResponse^ response;
+
+		// Try getting json response
+		try 
+		{
+			// Get Response
+			response = dynamic_cast<System::Net::HttpWebResponse^>(request->GetResponse());
+		}
+		catch (Exception^)
+		{
+			// There is no json, there is error.
+			System::String^ responseFromServer = gcnew String("Error");
+
+			// Send error with 500 code then return;
+			reqCb(responseFromServer, 500);
+			return;
+		}
+
 
 		// If HttpStatusCode is ok
 		if (response->StatusCode == System::Net::HttpStatusCode(200)) {
@@ -176,5 +199,41 @@ public ref struct JsonUtils
 			jsProcCb(System::Tuple::Create(27272727, resultNumber, paths, shortUrls, IDs, fileTypes, purity));
 			return;
 		}
+	}
+	//
+	// Function: processCollectionJson: process Collections Json for get variables.
+	// 
+	// returns void.
+	//
+	public: System::Void processCollectionJson() {
+		// Context for type casting.
+		msclr::interop::marshal_context context;
+
+		// Create new Json variable and parse json(Specified in default constructor)
+		nlohmann::json j = nlohmann::json::parse(context.marshal_as<std::string>(json));
+
+		// Create collectionNumber instance
+		int collectionNumber = j[nlohmann::json::json_pointer("/data")].size();
+
+		// Create string arrays for processing.
+		array<String^>^ collectionIDs = gcnew array<String^>(collectionNumber);
+		array<Object^>^ collectionNames = gcnew array<Object^>(collectionNumber);
+
+		// Loop for results.
+		for (int i = 0; i < collectionNumber; i++) {
+			try {
+				// Try get per page in string than parse it with integer
+				collectionIDs[i] = gcnew String(j[nlohmann::json::json_pointer((std::string)"/data/" + std::to_string(i))]["id"].get<std::string>().c_str());
+			}
+			catch (Exception^) {
+				// If error get per page in integer
+				collectionIDs[i] = System::Convert::ToString(j[nlohmann::json::json_pointer((std::string)"/data/" + std::to_string(i))]["id"].get<int>());
+			}
+			// Get collection names.
+			collectionNames[i] = gcnew String(j[nlohmann::json::json_pointer((std::string)"/data/" + std::to_string(i))]["label"].get<std::string>().c_str());
+		}
+
+		// Call callback.
+		jsProcCb(System::Tuple::Create(collectionIDs, collectionNames));
 	}
 };

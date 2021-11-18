@@ -35,6 +35,9 @@
     <ClInclude Include="options.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="collects.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Old Json Req.txt">

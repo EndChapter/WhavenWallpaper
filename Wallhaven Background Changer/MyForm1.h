@@ -21,7 +21,8 @@
 // TODO random seeding
 // TODO startup shortcut
 // TODO json in appdata
-
+// TODO show counter
+// TODO collection commenting
 namespace WhavenWallpaper {
 	using namespace System;
 	using namespace System::ComponentModel;
@@ -36,6 +37,77 @@ namespace WhavenWallpaper {
 	public ref class MyForm : public System::Windows::Forms::Form
 	{
 
+#pragma region Variables
+	//////////////////////////////////////////////////////////////////////////////
+	//																			//
+	// VARIABLES																//
+	//																			//
+	//////////////////////////////////////////////////////////////////////////////
+
+	// Your api key
+	private: String^ apikey;
+
+	// Global repeat thread. Why Global? because I will stop this thread when automatically repeat checkbox unchecked or program stopped
+	private: Thread^ counterThread;
+
+	// Options class instance for showing options.
+	private: Options::options^ opt = gcnew Options::options();
+
+
+	// Global paths, shorturls, IDs, fileTypes, purity variables. I use these variables in many functions.
+	private: array<String^>^ paths;
+	private: array<String^>^ shortUrls;
+	private: array<String^>^ IDs;
+	private: array<String^>^ fileTypes;
+	private: array<String^>^ purity;
+
+	// Global repeat variable: I use this when automatically repeat checkbox unchecked or checked.
+	private: static bool repeat = true;
+
+	// Inits: I use these inits when a user sends a request.
+	private: bool pageInit = false;
+	private: bool resultInit = false;
+	private: bool repeatInit = false;
+
+	// Savesession: I use this variable when user wants to save when exit.
+	private: bool savesession = true;
+
+	// Selected Result Index: I use this variable for checking selected result.
+	private: int result = 0;
+
+	// Page: I use this variable for checkind selected page index.
+	private: int page = 0;
+
+	// Counter: I use this variable for checking counter in miliseconds.
+	private: int counter;
+
+	// Download: I use this variable for user wants to download or not. 
+	private: bool download = true;
+
+	// Page Number: I use this variable for checking page number in functions.
+	private: int pageNumber;
+
+	// Page Number: I use this variable for checking result number in functions.
+	private: int resultNumber;
+
+	// Page Number: I use this variable for checking user when changed app for saving state of app.
+	private: bool changed;
+
+	// appSessionInit: I check this variable for when app initialized(Look at constructor.)
+	private: bool appSessionInit = false;
+
+	// Create collection callbacks delegates.
+	private: collects::collects::collectionFirstCallback^ firstCb = gcnew collects::collects::collectionFirstCallback(this, &MyForm::collectionSearchClickedCallback);
+	private: collects::collects::collectionSecondCallback^ secondCb = gcnew collects::collects::collectionSecondCallback(this, &MyForm::collectionJsonRetrievedCallback);
+	private: collects::collects::collectionThirdCallback^ thirdCb = gcnew collects::collects::collectionThirdCallback(this, &MyForm::collectionSelectedIndexChangedCallback);
+	private: collects::collects::collectionErrorCallback^ errorCb = gcnew collects::collects::collectionErrorCallback(this, &MyForm::collectionErrorCallback);
+
+	// collectionSearchState: if collection searched = true;
+	private: bool collectionSearchState = false;
+
+
+	private: collects::collects^ collect;
+#pragma endregion
 	public:
 		MyForm(void)
 		{
@@ -45,16 +117,16 @@ namespace WhavenWallpaper {
 			// Initialize components
 			InitializeComponent();
 
-			// Add notify icon.
+			// Add notify(tray) icon.
 			this->notifyIcon1->Icon = gcnew System::Drawing::Icon(resourceAssembly->GetManifestResourceStream("favicon.ico"));
 			this->notifyIcon1->Visible = false;
-			
-			//
-			//TODO: Add the constructor code here
-			//
+
+			// Initialize defaults
 			this->orderDropdown->SelectedIndex = 0;
 			this->sortingDropdown->SelectedIndex = 0;
 			this->counterDropDown->SelectedIndex = 1;
+
+			// Disable result components for app safety because there is no result for now.
 			disableResultComponents();
 
 			//This line disables maximize button.
@@ -84,7 +156,8 @@ namespace WhavenWallpaper {
 				// Get save when quit option.
 				savesession = j["options"]["savesession"];
 				
-
+				// Getting collection search status
+				collectionSearchState = j["options"]["collections"];
 			}
 			// If Json file not exist
 			else
@@ -96,12 +169,15 @@ namespace WhavenWallpaper {
 				j["options"]["apikey"] = "";
 				j["options"]["download"] = true;
 				j["options"]["savesession"] = true;
+				j["options"]["collections"] = false;
 
 				// This is app's first time so don't enter session even session is true
 				saveSessionInit = true;
 
 				// Write json
 				o << std::setw(4) << j << std::endl;
+
+
 			}
 
 			// If there is no api key then dont show nsfw checkbox
@@ -153,7 +229,7 @@ namespace WhavenWallpaper {
 					this->exactlyRadioButton->Checked = true;
 					this->noSelectRadioButton->Checked = false;
 				}
-				else if (resShort = gcnew String("noResShort"))
+				else if (resShort == gcnew String("noResShort"))
 				{
 					this->atLeastRadioButton->Checked = false;
 					this->exactlyRadioButton->Checked = false;
@@ -178,18 +254,33 @@ namespace WhavenWallpaper {
 				else
 					result = j["session"]["resultIndex"];
 
-				// Setting page this automatically sets results too
-				this->pagesListBox_SelectedIndexChanged("", nullptr);
+				// if there is a collection search active
+				if (collectionSearchState) 
+				{
+					// Generate collection form
+					collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, true);
+					
+					// Show collection
+					collect->Visible = true;
 
-				// Getting  auto select next image  counter dropdown index
+					// Change windows state for focusing options.
+					opt->WindowState = System::Windows::Forms::FormWindowState::Normal;
+				}
+				else
+				{
+					// This function basically build url with page so I can call it in here.
+					this->pagesListBox_SelectedIndexChanged("", nullptr);
+				}
+
+
+				// Getting automatically select next feature dropdown index
 				if (j["session"]["autoDropdownIndex"].is_null())
 					this->counterDropDown->SelectedIndex = 0;
 				else
 					this->counterDropDown->SelectedIndex = j["session"]["autoDropdownIndex"];
 
-				// Getting auto select next image check state
+				// Getting automatically select next feature check state
 				this->autoCheckBox->Checked = j["session"]["autoCheckBox"];
-
 			} 
 		}
 
@@ -216,6 +307,9 @@ namespace WhavenWallpaper {
 
 				// Create virtual result index for getting result index.
 				int _result = result;
+
+				// Create virtual search state boolean for getting search state
+				bool searchState = collectionSearchState;
 
 				// Create file stream for getting current json.
 				std::ifstream i("whaven-wallpaper-config.json");
@@ -261,6 +355,9 @@ namespace WhavenWallpaper {
 				j["session"]["autoCheckBox"] = this->autoCheckBox->Checked;
 				j["session"]["autoInput"] = this->autoCounterInput->Text == gcnew String("") ? "30" : context.marshal_as<const char*>(this->autoCounterInput->Text);
 				j["session"]["autoDropdownIndex"] = this->counterDropDown->SelectedIndex;
+
+				// Setting collection search state
+				j["options"]["collections"] = searchState;
 
 				// Create write stream for json.
 				std::ofstream o("whaven-wallpaper-config.json");
@@ -327,6 +424,7 @@ namespace WhavenWallpaper {
 	private: System::Windows::Forms::NotifyIcon^ notifyIcon1;
 	private: System::Windows::Forms::Timer^ timer1;
 	private: System::Windows::Forms::Button^ optionsButton;
+	private: System::Windows::Forms::Button^ collectionsButton;
 	private: System::ComponentModel::IContainer^ components;
 	private:
 		/// <summary>
@@ -390,6 +488,7 @@ namespace WhavenWallpaper {
 			this->notifyIcon1 = (gcnew System::Windows::Forms::NotifyIcon(this->components));
 			this->timer1 = (gcnew System::Windows::Forms::Timer(this->components));
 			this->optionsButton = (gcnew System::Windows::Forms::Button());
+			this->collectionsButton = (gcnew System::Windows::Forms::Button());
 			this->statusStrip1->SuspendLayout();
 			this->statusStrip2->SuspendLayout();
 			this->SuspendLayout();
@@ -562,7 +661,7 @@ namespace WhavenWallpaper {
 			// pathLinkLabel
 			// 
 			this->pathLinkLabel->AutoSize = true;
-			this->pathLinkLabel->Location = System::Drawing::Point(84, 559);
+			this->pathLinkLabel->Location = System::Drawing::Point(76, 559);
 			this->pathLinkLabel->Name = L"pathLinkLabel";
 			this->pathLinkLabel->Size = System::Drawing::Size(109, 13);
 			this->pathLinkLabel->TabIndex = 21;
@@ -868,7 +967,7 @@ namespace WhavenWallpaper {
 			// 
 			// optionsButton
 			// 
-			this->optionsButton->Location = System::Drawing::Point(245, 554);
+			this->optionsButton->Location = System::Drawing::Point(219, 554);
 			this->optionsButton->Name = L"optionsButton";
 			this->optionsButton->Size = System::Drawing::Size(75, 23);
 			this->optionsButton->TabIndex = 50;
@@ -876,12 +975,23 @@ namespace WhavenWallpaper {
 			this->optionsButton->UseVisualStyleBackColor = true;
 			this->optionsButton->Click += gcnew System::EventHandler(this, &MyForm::optionsButton_Click);
 			// 
+			// collectionsButton
+			// 
+			this->collectionsButton->Location = System::Drawing::Point(298, 554);
+			this->collectionsButton->Name = L"collectionsButton";
+			this->collectionsButton->Size = System::Drawing::Size(75, 23);
+			this->collectionsButton->TabIndex = 51;
+			this->collectionsButton->Text = L"Collections";
+			this->collectionsButton->UseVisualStyleBackColor = true;
+			this->collectionsButton->Click += gcnew System::EventHandler(this, &MyForm::collectionsButton_Click);
+			// 
 			// MyForm
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
 			this->BackColor = System::Drawing::SystemColors::Control;
 			this->ClientSize = System::Drawing::Size(387, 605);
+			this->Controls->Add(this->collectionsButton);
 			this->Controls->Add(this->optionsButton);
 			this->Controls->Add(this->counterDropDown);
 			this->Controls->Add(this->autoCounterInput);
@@ -939,66 +1049,6 @@ namespace WhavenWallpaper {
 			this->PerformLayout();
 
 		}
-#pragma endregion
-
-#pragma region Variables
-		//////////////////////////////////////////////////////////////////////////////
-		//																			//
-		// VARIABLES																//
-		//																			//
-		//////////////////////////////////////////////////////////////////////////////
-		
-		// Your api key
-		private: String^ apikey;
-
-		// Global repeat thread. Why Global? because I will stop this thread when automatically repeat checkbox unchecked or program stopped
-		private: Thread^ counterThread;
-
-		// Options class instance for showing options.
-		Options::options^ opt = gcnew Options::options();
-
-
-		// Global paths, shorturls, IDs, fileTypes, purity variables. I use these variables in many functions.
-		private: array<String^>^ paths;
-		private: array<String^>^ shortUrls;
-		private: array<String^>^ IDs;
-		private: array<String^>^ fileTypes;
-		private: array<String^>^ purity;
-
-		// Global repeat variable: I use this when automatically repeat checkbox unchecked or checked.
-		private: static bool repeat = true;
-
-		// Inits: I use these inits when a user sends a request.
-		private: bool pageInit = false;
-		private: bool resultInit = false;
-		private: bool repeatInit = false;
-
-		// Savesession: I use this variable when user wants to save when exit.
-		private: bool savesession = true;
-
-		// Selected Result Index: I use this variable for checking selected result.
-		private: int result = 0;
-
-		// Page: I use this variable for checkind selected page index.
-		private: int page = 0;
-
-		// Counter: I use this variable for checking counter in miliseconds.
-		private: int counter;
-
-		// Download: I use this variable for user wants to download or not. 
-		private: bool download = true;
-
-		// Page Number: I use this variable for checking page number in functions.
-		private: int pageNumber;
-
-		// Page Number: I use this variable for checking result number in functions.
-		private: int resultNumber;
-
-		// Page Number: I use this variable for checking user when changed app for saving state of app.
-		private: bool changed;
-
-		// appSessionInit: I check this variable for when app initialized(Look at constructor.)
-		private: bool appSessionInit = false;
 #pragma endregion
 
 #pragma region Functions
@@ -1736,7 +1786,45 @@ namespace WhavenWallpaper {
 			else
 			{
 				// Update strip(StatusBar) and do nothing(means dont continue).
-				Control::Invoke(us, gcnew String("Error while processing json"), 50, 272727);
+				Control::Invoke(us, gcnew String("Error while processing json"), 0, 272727);
+
+
+				// Create index integer for not enabled components.
+				int disabledComponentIndex = 0;
+
+				// If No Select Resolution button checked than not enable that components.
+				if (this->noSelectRadioButton->Checked)
+					disabledComponentIndex += 4;
+				array<Windows::Forms::Control^>^ disabledComponents = gcnew array<Windows::Forms::Control^>(disabledComponentIndex);
+				if (disabledComponentIndex > 0) {
+					disabledComponents[0] = this->resolutionXInput;
+					disabledComponents[1] = this->resolutionYInput;
+					disabledComponents[2] = this->resolutionSeperatorLabel;
+					disabledComponents[3] = this->pixelsLabel;
+				}
+
+
+				// Create enableButtons Thread which enables all components.
+				Thread^ enableComponents = gcnew Thread(gcnew ParameterizedThreadStart(this, &MyForm::enableButtons));
+
+				// Start thread and dont enable Disabled Components.
+				enableComponents->Start(disabledComponents);
+
+				// Wait for finishing thread
+				enableComponents->Join();
+
+				// Also disable result components for app safety
+				cResultComponents^ changeResultComponents = gcnew cResultComponents(this, &MyForm::disableResultComponents);
+				Control::Invoke(changeResultComponents);
+
+				// Create empty array for sending collection' enableComponent function
+				array<Windows::Forms::Control^>^ dComponents = gcnew array<Windows::Forms::Control^>(0);
+
+				// Enable collection buttons if exist and not disposed
+				if (collect != nullptr)
+					if (!collect->IsDisposed)
+						collect->enableButtons(dComponents);
+				
 			}
 		}
 
@@ -1810,9 +1898,17 @@ namespace WhavenWallpaper {
 
 			// Create enableButtons Thread which enables all components.
 			Thread^ enableComponents = gcnew Thread(gcnew ParameterizedThreadStart(this, &MyForm::enableButtons));
-
+			
 			// Start thread and dont enable Disabled Components.
 			enableComponents->Start(disabledComponents);
+			
+			// Create empty array for sending collection' enableComponent function
+			array<Windows::Forms::Control^>^ dComponents = gcnew array<Windows::Forms::Control^>(0);
+
+			// Enable collection buttons if exist and not disposed
+			if (collect != nullptr)
+				if (!collect->IsDisposed)
+					collect->enableButtons(dComponents);
 
 			// If Wallpaper setting is completed.
 			if (statusCode == 0)
@@ -1828,6 +1924,131 @@ namespace WhavenWallpaper {
 			}
 
 		}
+			   
+		//
+		// Callback: collectionSearchClickedCallback(): running when collections search button clicked.
+		// 
+		// returns void.
+		// 
+		// Warning: You will call with delegate if you want to use this function in events or threads.
+		//
+		private: System::Void collectionSearchClickedCallback() {
+			// Create updateStrip(StatusBar Update) delegate
+			_updateStrip^ us = gcnew _updateStrip(this, &MyForm::updateStrip);
+
+			// Collection search clicked state true for saving app
+			collectionSearchState = true;
+
+
+			// Update statusbar
+			Control::Invoke(us, gcnew String("Collection searching"), 20, 0);
+
+			// Disabling Buttons.
+			array<Windows::Forms::Control^>^ exceptedComponents = gcnew array<Windows::Forms::Control^>(4);
+			exceptedComponents[0] = this->imageLinkLabel;
+			exceptedComponents[1] = this->pathLinkLabel;
+			exceptedComponents[2] = this->statusStrip1;
+			exceptedComponents[3] = this->statusStrip2;
+
+			// Create Thread for disable all components.
+			Thread^ disableComponents = gcnew Thread(gcnew ParameterizedThreadStart(this, &MyForm::disableButtons));
+
+			// Start thread and send excepted components.
+			disableComponents->Start(exceptedComponents);
+		}
+
+		//
+		// Callback: collectionJsonRetrievedCallback(): running when collection json retrieved.
+		// 
+		// returns void.
+		// 
+		// Warning: You will call with delegate if you want to use this function in events or threads.
+		//
+		private: System::Void collectionJsonRetrievedCallback() {
+			// Create updateStrip(StatusBar Update) delegate
+			_updateStrip^ us = gcnew _updateStrip(this, &MyForm::updateStrip);
+
+			// Update statusbar
+			Control::Invoke(us, gcnew String("Collection retrieved processing..."), 20, 0);
+		}
+
+		//
+		// Callback: collectionSelectedIndexChangedCallback(System::String^ _url): running when collection selected.
+		// 
+		// (System::String^ _url: collection url for handling.
+		// 
+		// returns void.
+		// 
+		// Warning: You will call with delegate if you want to use this function in events or threads.
+		//
+		private: System::Void collectionSelectedIndexChangedCallback(System::String^ _url, int _page) {
+
+			// Getting page for selecting page
+			page = _page;
+
+			// Create updateStrip(StatusBar Update) delegate
+			_updateStrip^ us = gcnew _updateStrip(this, &MyForm::updateStrip);
+
+			// Update statusbar
+			Control::Invoke(us, gcnew String("Collection selected getting JSON response..."), 22, 0);
+
+			// Create Callback for json Request.
+			JsonUtils::requestCallback^ jRequest = gcnew JsonUtils::requestCallback(this, &MyForm::jsonRequestCallbackHandler);
+
+			// Create JsonUtils instance, send builded url and callback.
+			JsonUtils^ jd = gcnew JsonUtils(_url, jRequest);
+
+
+			// Create jsonRequest Thread for request.
+			Thread^ backgroundThread = gcnew Thread(gcnew ThreadStart(jd, &JsonUtils::jsonRequest));
+
+			// Start Thread.
+			backgroundThread->Start();
+
+			// Delete created items.
+			delete us;
+		}
+		//
+		// Callback: collectionErrorCallback(): running when collection errored.
+		// 
+		// returns void.
+		// 
+		// Warning: You will call with delegate if you want to use this function in events or threads.
+		//
+		private: System::Void collectionErrorCallback() {
+			// Create updateStrip(StatusBar Update) delegate
+			_updateStrip^ us = gcnew _updateStrip(this, &MyForm::updateStrip);
+
+			// Update statusbar
+			Control::Invoke(us, gcnew String("Error while retrieving collection. Probably user not found..."), 0, 0);
+
+			// Create index integer for not enabled components.
+			int disabledComponentIndex = 0;
+
+			// If No Select Resolution button checked than not enable that components.
+			if (this->noSelectRadioButton->Checked)
+				disabledComponentIndex += 4;
+			array<Windows::Forms::Control^>^ disabledComponents = gcnew array<Windows::Forms::Control^>(disabledComponentIndex);
+			if (disabledComponentIndex > 0) {
+				disabledComponents[0] = this->resolutionXInput;
+				disabledComponents[1] = this->resolutionYInput;
+				disabledComponents[2] = this->resolutionSeperatorLabel;
+				disabledComponents[3] = this->pixelsLabel;
+			}
+
+			// Create enableButtons Thread which enables all components.
+			Thread^ enableComponents = gcnew Thread(gcnew ParameterizedThreadStart(this, &MyForm::enableButtons));
+
+			// Start thread and dont enable Disabled Components.
+			enableComponents->Start(disabledComponents);
+
+			// Also disable result components for app safety
+			cResultComponents^ changeResultComponents = gcnew cResultComponents(this, &MyForm::disableResultComponents);
+			Control::Invoke(changeResultComponents);
+
+			delete us;
+		}
+
 #pragma endregion
 
 		//////////////////////////////////////////////////////////////////////////////
@@ -1845,6 +2066,9 @@ namespace WhavenWallpaper {
 		//
 		private: System::Void searchButton_Click(System::Object^ sender, System::EventArgs^ e)
 		{
+			// Saying app to if you are saving this app this is not a collection.
+			collectionSearchState = false;
+
 			// App changed so I can save. I check this variable in destructor
 			if (!changed)
 				changed = true;
@@ -1981,7 +2205,7 @@ namespace WhavenWallpaper {
 		}
 
 		//
-		// Event: resultsListBox_SelectedIndexChanged: Event for when result list(known as resultsListBox) index changed.
+		// Event: pagesListBox_SelectedIndexChanged: Event for when page list(known as pagesListBox) index changed.
 		//
 		private: System::Void pagesListBox_SelectedIndexChanged(System::Object^ sender, System::EventArgs^ e) {
 			// App changed so I can save. I check this variable in destructor
@@ -2001,11 +2225,35 @@ namespace WhavenWallpaper {
 			// Update Status bar when building url.
 			Control::Invoke(us, gcnew String("Building url..."), 5, 0);
 
-			// Create queryBuilder delegate
-			qBuilder^ qBuild = gcnew qBuilder(this, &MyForm::queryBuilder);
+			// Create url variable for getting url
+			String^ _url;
 
-			// Call queryBuilder delegate with 1 status code which change page query.
-			String^ _url = qBuild(1);
+			// If search is a collection
+			if (collectionSearchState) {
+				// Create collection window if not created or disposed
+				if (collect == nullptr)
+					collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, false);
+				else if (collect->IsDisposed)
+					collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, false);
+
+				// If app not initted then change page
+				if(!appSessionInit)
+					// Set page for saving app and more features
+					page = this->pagesListBox->SelectedIndex;
+
+				// Then build collection url
+				_url = collect->collectionQueryBuilder(true, page);
+
+
+			}
+			else {
+				// Create queryBuilder delegate
+				qBuilder^ qBuild = gcnew qBuilder(this, &MyForm::queryBuilder);
+
+				// Call queryBuilder delegate with 1 status code which change page query.
+				_url = qBuild(1);
+			}
+
 
 			// Creating array for not disabling components before call disableButtons which disables all components.
 			array<Windows::Forms::Control^>^ exceptedComponents = gcnew array<Windows::Forms::Control^>(4);
@@ -2240,7 +2488,7 @@ namespace WhavenWallpaper {
 		//
 		// Event: notifyIcon1_Click: Event for when user clicks taskbar icon.
 		//
-		private: System::Void notifyIcon1_Click(System::Object^ sender, System::EventArgs^ e) {
+		private: System::Void notifyIcon1_Click(System::Object^, System::EventArgs^) {
 			// Change form state with visible
 			this->Visible = true;
 
@@ -2254,7 +2502,7 @@ namespace WhavenWallpaper {
 		//
 		// Event: MyForm_Resize: Event for when user minimize the program.
 		//
-		private: System::Void MyForm_Resize(System::Object^ sender, System::EventArgs^ e) {
+		private: System::Void MyForm_Resize(System::Object^, System::EventArgs^) {
 			// If window state minimized
 			if (this->WindowState == System::Windows::Forms::FormWindowState::Minimized) {
 				// Show notify icon
@@ -2267,7 +2515,7 @@ namespace WhavenWallpaper {
 		//
 		// Event: MyForm_Resize: Event for when options button clicked.
 		//
-		private: System::Void optionsButton_Click(System::Object^ sender, System::EventArgs^ e) {
+		private: System::Void optionsButton_Click(System::Object^, System::EventArgs^) {
 			if (opt->IsDisposed)
 				opt = gcnew Options::options();
 			// Change options visible state to true.
@@ -2277,5 +2525,15 @@ namespace WhavenWallpaper {
 			// Change windows state for focusing options.
 			opt->WindowState = System::Windows::Forms::FormWindowState::Normal;
 		}
-	};
+		private: System::Void collectionsButton_Click(System::Object^, System::EventArgs^) {
+			if (collect == nullptr)
+				collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, false);
+			else if (collect->IsDisposed)
+				collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, false);
+			collect->Visible = !collect->Visible;
+
+			// Change windows state for focusing options.
+			opt->WindowState = System::Windows::Forms::FormWindowState::Normal;
+		}
+};
 }
