@@ -1737,12 +1737,12 @@ namespace WhavenWallpaper {
 					// Create selectResult Instance.
 					selectR^ setRs = gcnew selectR(this, &MyForm::selectResult);
 
+					// Set resultInit true for dont trigger selectedResultChanged event.
+					resultInit = true;
+
 					// If app not inititialized reset result.
 					if (!appSessionInit)
 					{
-						// Set resultInit true for dont trigger selectedResultChanged event.
-						resultInit = true;
-
 						// Reset Result Index
 						result = 0;
 

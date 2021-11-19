@@ -75,52 +75,54 @@ ref struct JpegUtils
 		String^ out = gcnew String("\\wallhaven-") + fileID + gcnew String(".") + fileType;
 
 		// Create WebClient instance for download jpeg
-		System::Net::WebClient^ wb = gcnew System::Net::WebClient();
-
-		// If user selects not save images.
-		if (!download)
-		{
-			// then directory is just /out not /out/(specified purity)
-			directory = "out";
-
-			// and filename is just out.jpg or out.png
-			out = "\\out." + fileType;
-
-			// Create directory if not
-			System::IO::Directory::CreateDirectory(directory);
-
-			// Download url(Specified in default constructor) in /out/out.png or /out/out.jpg 
-			wb->DownloadFile(_url, directory + out);
-
-			// Handle Callback
-			jDownCb(0);
-
-			// Finish Function
-			return;
-		}
-		// If user selects to save images.
-		else {
-			// Then go on with defaults and create specified directory if not
-			System::IO::Directory::CreateDirectory(directory);
-
-			// If specified file is not downladed already.
-			if (!System::IO::File::Exists(directory + out))
+		if (System::Net::WebClient^ wb = gcnew System::Net::WebClient()) {
+			// If user selects not save images.
+			if (!download)
 			{
-				// Then go on download
+				// then directory is just /out not /out/(specified purity)
+				directory = "out";
+
+				// and filename is just out.jpg or out.png
+				out = "\\out." + fileType;
+
+				// Create directory if not
+				System::IO::Directory::CreateDirectory(directory);
+
+				// Download url(Specified in default constructor) in /out/out.png or /out/out.jpg 
 				wb->DownloadFile(_url, directory + out);
 
-				// Handle Callback and return
+				// Handle Callback
 				jDownCb(0);
+
+				// Finish Function
 				return;
 			}
-			// If specified file is downladed already.
-			else
-			{
-				// Do nothing, file is already downloaded you can handle callback and return
-				jDownCb(0);
-				return;
+			// If user selects to save images.
+			else {
+				// Then go on with defaults and create specified directory if not
+				System::IO::Directory::CreateDirectory(directory);
+
+				// If specified file is not downladed already.
+				if (!System::IO::File::Exists(directory + out))
+				{
+					// Then go on download
+					wb->DownloadFile(_url, directory + out);
+
+					// Handle Callback and return
+					jDownCb(0);
+					return;
+				}
+				// If specified file is downladed already.
+				else
+				{
+					// Do nothing, file is already downloaded you can handle callback and return
+					jDownCb(0);
+					return;
+				}
 			}
 		}
+
+
 	};
 
 	//
