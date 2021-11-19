@@ -47,7 +47,7 @@ using namespace System::Diagnostics;
 
 // Change assembly version
 using namespace System::Reflection;
-[assembly:AssemblyVersionAttribute("1.0.0.1")] ;
+[assembly:AssemblyVersionAttribute("1.0.3.0")] ;
 // [assembly:AssemblyKeyFileAttribute("keyfile.snk")] ;
 
 
