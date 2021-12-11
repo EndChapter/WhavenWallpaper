@@ -135,7 +135,7 @@ ref struct JpegUtils
 	public: delegate System::Void _setWallpaper();
 	public: System::Void setWallpaper() {
 		// Create path variable for get path
-		wchar_t path[_MAX_PATH];
+		wchar_t path[MAX_PATH];
 
 		// Create wchar_t* for casting strings.
 		pin_ptr<const wchar_t> wch;
@@ -150,7 +150,7 @@ ref struct JpegUtils
 			wch = PtrToStringChars(gcnew String("out\\out.") + fileType);
 
 		// Get full path and write it in path variable
-		wchar_t* rtVal = _wfullpath(path, wch, _MAX_PATH);
+		wchar_t* rtVal = _wfullpath(path, wch, MAX_PATH);
 
 		// Set path to wallpaper
 		if (SystemParametersInfoW(SPI_SETDESKWALLPAPER, 0, path, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE))

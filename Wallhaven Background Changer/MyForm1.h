@@ -44,8 +44,6 @@ namespace WhavenWallpaper {
 	//																			//
 	//////////////////////////////////////////////////////////////////////////////
 
-	// Your api key
-	private: String^ apikey;
 
 	// Global repeat thread. Why Global? because I will stop this thread when automatically repeat checkbox unchecked or program stopped
 	private: Thread^ counterThread;
@@ -147,9 +145,6 @@ namespace WhavenWallpaper {
 				// Get filestrem to json.
 				i >> j;
 
-				// Get apikey
-				apikey = gcnew System::String((j["options"]["apikey"].get<std::string>()).c_str());
-
 				// Get download images option.
 				download = j["options"]["download"];
 
@@ -171,8 +166,6 @@ namespace WhavenWallpaper {
 				// Create write stream for json
 				std::ofstream o("whaven-wallpaper-config.json");
 
-				// Set defaults to json
-				j["options"]["apikey"] = "";
 				j["options"]["download"] = true;
 				j["options"]["savesession"] = true;
 				j["options"]["collections"] = false;
@@ -258,7 +251,7 @@ namespace WhavenWallpaper {
 				if (collectionSearchState) 
 				{
 					// Generate collection form
-					collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, true);
+					collect = gcnew collects::collects("", firstCb, secondCb, thirdCb, errorCb, true);
 					
 					// Show collection
 					collect->Visible = true;
@@ -1111,10 +1104,6 @@ namespace WhavenWallpaper {
 			// Create New String
 			std::string url = "https://wallhaven.cc/api/v1/search?";
 
-			// If api key specified then add url to api key
-			if (apikey != gcnew String("") && apikey!=nullptr)
-				url += "apikey=" + context.marshal_as<std::string>(apikey);
-
 			// Add search Query(q) to url.
 			url += (std::string)"&q=" + context.marshal_as<std::string>(this->textBox1->Text);
 
@@ -1920,6 +1909,8 @@ namespace WhavenWallpaper {
 			// Collection search clicked state true for saving app
 			collectionSearchState = true;
 
+			// Making result 0 for resetting results.
+			result = 0;
 
 			// Update statusbar
 			Control::Invoke(us, gcnew String("Collection searching"), 20, 0);
@@ -2213,9 +2204,9 @@ namespace WhavenWallpaper {
 			if (collectionSearchState) {
 				// Create collection window if not created or disposed
 				if (collect == nullptr)
-					collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, false);
+					collect = gcnew collects::collects("", firstCb, secondCb, thirdCb, errorCb, false);
 				else if (collect->IsDisposed)
-					collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, false);
+					collect = gcnew collects::collects("", firstCb, secondCb, thirdCb, errorCb, false);
 
 				// If app not initted then change page
 				if(!appSessionInit)
@@ -2508,9 +2499,9 @@ namespace WhavenWallpaper {
 		}
 		private: System::Void collectionsButton_Click(System::Object^, System::EventArgs^) {
 			if (collect == nullptr)
-				collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, false);
+				collect = gcnew collects::collects("", firstCb, secondCb, thirdCb, errorCb, false);
 			else if (collect->IsDisposed)
-				collect = gcnew collects::collects(apikey, firstCb, secondCb, thirdCb, errorCb, false);
+				collect = gcnew collects::collects("", firstCb, secondCb, thirdCb, errorCb, false);
 			collect->Visible = !collect->Visible;
 
 			// Change windows state for focusing options.
