@@ -38,7 +38,6 @@ namespace Options {
 				i >> j;
 
 				// Initialize checked states for options
-				this->apiKeyInput->Text = gcnew String(j["options"]["apikey"].get<std::string>().c_str());
 				this->saveSession->Checked = j["options"]["savesession"];
 				this->saveImages->Checked = j["options"]["download"];
 			}
@@ -56,8 +55,8 @@ namespace Options {
 			}
 		}
 	private: System::Reflection::Assembly^ resourceAssembly = Reflection::Assembly::GetExecutingAssembly();
-	private: System::Windows::Forms::Label^ apiKeyLabel;
-	private: System::Windows::Forms::TextBox^ apiKeyInput;
+
+
 	private: System::Windows::Forms::CheckBox^ saveImages;
 	private: System::Windows::Forms::Label^ warnLabel;
 	private: System::Windows::Forms::Button^ saveButton;
@@ -76,31 +75,11 @@ namespace Options {
 		/// </summary>
 		void InitializeComponent(void)
 		{
-			this->apiKeyLabel = (gcnew System::Windows::Forms::Label());
-			this->apiKeyInput = (gcnew System::Windows::Forms::TextBox());
 			this->saveImages = (gcnew System::Windows::Forms::CheckBox());
 			this->warnLabel = (gcnew System::Windows::Forms::Label());
 			this->saveButton = (gcnew System::Windows::Forms::Button());
 			this->saveSession = (gcnew System::Windows::Forms::CheckBox());
 			this->SuspendLayout();
-			// 
-			// apiKeyLabel
-			// 
-			this->apiKeyLabel->AutoSize = true;
-			this->apiKeyLabel->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10));
-			this->apiKeyLabel->Location = System::Drawing::Point(12, 9);
-			this->apiKeyLabel->Name = L"apiKeyLabel";
-			this->apiKeyLabel->Size = System::Drawing::Size(60, 17);
-			this->apiKeyLabel->TabIndex = 0;
-			this->apiKeyLabel->Text = L"Api Key:";
-			// 
-			// apiKeyInput
-			// 
-			this->apiKeyInput->Location = System::Drawing::Point(78, 8);
-			this->apiKeyInput->Name = L"apiKeyInput";
-			this->apiKeyInput->Size = System::Drawing::Size(194, 20);
-			this->apiKeyInput->TabIndex = 1;
-			this->apiKeyInput->UseSystemPasswordChar = true;
 			// 
 			// saveImages
 			// 
@@ -108,7 +87,7 @@ namespace Options {
 			this->saveImages->Checked = true;
 			this->saveImages->CheckState = System::Windows::Forms::CheckState::Checked;
 			this->saveImages->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->saveImages->Location = System::Drawing::Point(12, 34);
+			this->saveImages->Location = System::Drawing::Point(12, 10);
 			this->saveImages->Name = L"saveImages";
 			this->saveImages->Size = System::Drawing::Size(100, 21);
 			this->saveImages->TabIndex = 2;
@@ -118,7 +97,7 @@ namespace Options {
 			// warnLabel
 			// 
 			this->warnLabel->AutoSize = true;
-			this->warnLabel->Location = System::Drawing::Point(9, 116);
+			this->warnLabel->Location = System::Drawing::Point(9, 92);
 			this->warnLabel->Name = L"warnLabel";
 			this->warnLabel->Size = System::Drawing::Size(253, 39);
 			this->warnLabel->TabIndex = 4;
@@ -127,7 +106,7 @@ namespace Options {
 			// 
 			// saveButton
 			// 
-			this->saveButton->Location = System::Drawing::Point(12, 90);
+			this->saveButton->Location = System::Drawing::Point(12, 66);
 			this->saveButton->Name = L"saveButton";
 			this->saveButton->Size = System::Drawing::Size(75, 23);
 			this->saveButton->TabIndex = 5;
@@ -141,7 +120,7 @@ namespace Options {
 			this->saveSession->Checked = true;
 			this->saveSession->CheckState = System::Windows::Forms::CheckState::Checked;
 			this->saveSession->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->saveSession->Location = System::Drawing::Point(12, 62);
+			this->saveSession->Location = System::Drawing::Point(12, 38);
 			this->saveSession->Name = L"saveSession";
 			this->saveSession->Size = System::Drawing::Size(204, 21);
 			this->saveSession->TabIndex = 3;
@@ -152,13 +131,11 @@ namespace Options {
 			// 
 			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(282, 167);
+			this->ClientSize = System::Drawing::Size(282, 137);
 			this->Controls->Add(this->saveButton);
 			this->Controls->Add(this->warnLabel);
 			this->Controls->Add(this->saveSession);
 			this->Controls->Add(this->saveImages);
-			this->Controls->Add(this->apiKeyInput);
-			this->Controls->Add(this->apiKeyLabel);
 			this->Name = L"options";
 			this->Text = L"Options";
 			this->ResumeLayout(false);
@@ -213,7 +190,6 @@ namespace Options {
 			i >> j;
 
 			// Save options in json instance
-			j["options"]["apikey"] = context.marshal_as<const char*>(this->apiKeyInput->Text);
 			j["options"]["savesession"] = this->saveSession->Checked;
 			j["options"]["download"] = this->saveImages->Checked;
 

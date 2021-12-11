@@ -186,11 +186,6 @@ namespace WhavenWallpaper {
 
 			}
 
-			// If there is no api key then dont show nsfw checkbox
-			if (apikey != gcnew String("") && apikey != nullptr) {
-				this->nsfwCheckBox->Visible = true;
-			}
-
 			// If save option checked and this is not apps first time and if there is a session section in json file.
 			if (savesession && !saveSessionInit && j["session"].is_object())
 			{
@@ -208,7 +203,6 @@ namespace WhavenWallpaper {
 				// Getting purity
 				this->sfwCheckBox->Checked = j["session"]["sfw"];
 				this->sketchyCheckBox->Checked = j["session"]["sketchy"];
-				this->nsfwCheckBox->Checked = j["session"]["nsfw"];
 
 				// Getting sorting index
 				if (j["session"]["sortingIndex"].is_null())
@@ -334,7 +328,6 @@ namespace WhavenWallpaper {
 				// Setting purity to json.
 				j["session"]["sfw"] = this->sfwCheckBox->Checked;
 				j["session"]["sketchy"] = this->sketchyCheckBox->Checked;
-				j["session"]["nsfw"] = this->nsfwCheckBox->Checked;
 
 				// Setting sorting indexes to json.
 				j["session"]["sortingIndex"] = this->sortingDropdown->SelectedIndex;
@@ -394,7 +387,7 @@ namespace WhavenWallpaper {
 	private: System::Windows::Forms::CheckBox^ peopleCheckBox;
 	private: System::Windows::Forms::CheckBox^ sfwCheckBox;
 	private: System::Windows::Forms::CheckBox^ sketchyCheckBox;
-	private: System::Windows::Forms::CheckBox^ nsfwCheckBox;
+
 	private: System::Windows::Forms::ComboBox^ sortingDropdown;
 	private: System::Windows::Forms::ComboBox^ orderDropdown;
 	private: System::Windows::Forms::LinkLabel^ pathLinkLabel;
@@ -457,7 +450,6 @@ namespace WhavenWallpaper {
 			this->peopleCheckBox = (gcnew System::Windows::Forms::CheckBox());
 			this->sfwCheckBox = (gcnew System::Windows::Forms::CheckBox());
 			this->sketchyCheckBox = (gcnew System::Windows::Forms::CheckBox());
-			this->nsfwCheckBox = (gcnew System::Windows::Forms::CheckBox());
 			this->sortingDropdown = (gcnew System::Windows::Forms::ComboBox());
 			this->orderDropdown = (gcnew System::Windows::Forms::ComboBox());
 			this->searchButton = (gcnew System::Windows::Forms::Button());
@@ -618,18 +610,6 @@ namespace WhavenWallpaper {
 			this->sketchyCheckBox->TabIndex = 14;
 			this->sketchyCheckBox->Text = L"sketchy";
 			this->sketchyCheckBox->UseVisualStyleBackColor = true;
-			// 
-			// nsfwCheckBox
-			// 
-			this->nsfwCheckBox->AutoSize = true;
-			this->nsfwCheckBox->Font = (gcnew System::Drawing::Font(L"Corbel", 10));
-			this->nsfwCheckBox->Location = System::Drawing::Point(308, 168);
-			this->nsfwCheckBox->Name = L"nsfwCheckBox";
-			this->nsfwCheckBox->Size = System::Drawing::Size(54, 21);
-			this->nsfwCheckBox->TabIndex = 15;
-			this->nsfwCheckBox->Text = L"nsfw";
-			this->nsfwCheckBox->UseVisualStyleBackColor = true;
-			this->nsfwCheckBox->Visible = false;
 			// 
 			// sortingDropdown
 			// 
@@ -1041,7 +1021,6 @@ namespace WhavenWallpaper {
 			this->Controls->Add(this->generalCheckBox);
 			this->Controls->Add(this->sfwCheckBox);
 			this->Controls->Add(this->sketchyCheckBox);
-			this->Controls->Add(this->nsfwCheckBox);
 			this->ForeColor = System::Drawing::SystemColors::ControlText;
 			this->FormBorderStyle = System::Windows::Forms::FormBorderStyle::FixedSingle;
 			this->Name = L"MyForm";
@@ -1157,13 +1136,9 @@ namespace WhavenWallpaper {
 			else
 				url += (std::string)"&purity=0";
 			if (this->sketchyCheckBox->Checked)
-				url += (std::string)"1";
+				url += (std::string)"10";
 			else
-				url += (std::string)"0";
-			if (this->nsfwCheckBox->Checked)
-				url += (std::string)"1";
-			else
-				url += (std::string)"0";
+				url += (std::string)"00";
 
 			// Sorting.
 			// Get shorting dropdown Index

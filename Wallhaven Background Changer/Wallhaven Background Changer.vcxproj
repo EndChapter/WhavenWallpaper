@@ -130,7 +130,6 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies />
-      <Profile>true</Profile>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
