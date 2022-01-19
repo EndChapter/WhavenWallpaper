@@ -1,6 +1,4 @@
 # WHaven Wallpaper
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FEndChapter%2FWhavenWallpaper.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FEndChapter%2FWhavenWallpaper?ref=badge_shield)
-
 
 WHaven Wallpaper is a desktop wallpaper change program for change your wallpapers directly from [wallhaven](https://wallhaven.cc/).
 
@@ -58,7 +56,3 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 ## License
 [GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0-standalone.html)
-
-
-
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FEndChapter%2FWhavenWallpaper.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FEndChapter%2FWhavenWallpaper?ref=badge_large)
