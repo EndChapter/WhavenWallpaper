@@ -38,6 +38,8 @@ You can build .sln file from Visual Studio 2019. It requires C++/CLI support fea
 
 ## Linux and Mac OS versions?
 
+Linux of course have better app than mine! here is the link https://github.com/varietywalls/variety
+
 I lost all my motivation while writing this app. but if you gave me motivation(E.G: give project a star), I can write Linux and Mac OS versions with CEF(Chromium Embedded Framework) or GTK(or maybe with QT idk).
 
 ## Feature Requests
